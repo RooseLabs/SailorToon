@@ -191,7 +191,10 @@ Shader "Custom/ProceduralSkybox"
                 if (barFrac < halfGap || barFrac > 1.0 - halfGap)
                     return float4(0,0,0,0);
 
-                float  specU    = (barID + 0.5) / _BarCount * 0.6;
+                float quarterBars = _BarCount * 0.25;
+                float quadID      = fmod(barID, _BarCount * 0.5);
+                float mirrorID    = quadID < quarterBars ? quadID : _BarCount * 0.5 - 1.0 - quadID;
+                float specU       = (mirrorID + 0.5) / quarterBars * 0.5;
                 float  barAmp   = saturate(sampleSpectrum(specU));
 
                 float  barTop   = barAmp * _BarHeight;

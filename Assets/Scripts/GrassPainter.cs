@@ -6,6 +6,23 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 #endif
 
+/// <summary>
+/// GrassPainter — attach to an empty GameObject.
+///
+/// Workflow:
+///   1. Add this component to an empty GameObject (e.g. "GrassPainter_Hill").
+///   2. Assign the GrassGeometry material to the MeshRenderer that gets auto-added.
+///   3. In the Inspector, assign the Target Surface — any imported Blender mesh with a collider.
+///   4. Enable "Painting Mode" in the Inspector, then click/drag in the Scene view.
+///   5. Hold Shift to erase. Disable "Painting Mode" when done.
+///   6. Use "Clear All Grass" to start over.
+///
+/// Data contract:
+///   spawnPoints  — stored in LOCAL space of this GameObject's transform.
+///   The mesh vertices are also in local space (no conversion needed in RebuildMesh).
+///   PaintAt converts world-space hit points to local space before storing.
+///   EraseAt and TooClose work in local space too.
+/// </summary>
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class GrassPainter : MonoBehaviour
 {
@@ -22,9 +39,9 @@ public class GrassPainter : MonoBehaviour
     [Range(1, 50)]
     public int bladesPerStroke = 8;
 
-    [Tooltip("Minimum distance between any two blade roots (avoids clumping).")]
+    [Tooltip("Minimum distance between any two blade roots (avoids clumping). Set to 0 to disable.")]
     [Range(0f, 1f)]
-    public float minSpacing = 0.1f;
+    public float minSpacing = 0f;
 
     [Header("Erase Settings")]
     [Tooltip("Radius used when erasing (hold Shift while painting).")]
@@ -35,9 +52,28 @@ public class GrassPainter : MonoBehaviour
     [Tooltip("Toggle to enter / exit painting mode.")]
     public bool paintingMode = false;
 
+    // ── Serialised point list (LOCAL space) ───────────────────────────────────
+    // Stored in local space so RebuildMesh never needs to re-transform them.
+    // This survives domain reloads and scene saves correctly.
     [HideInInspector]
     public List<Vector3> spawnPoints = new List<Vector3>();
 
+    // ── Unity callbacks ───────────────────────────────────────────────────────
+
+    // OnEnable fires in both play mode AND edit mode (after domain reload,
+    // scene load, or component enable). This is how the mesh gets restored
+    // automatically every time Unity opens the scene.
+    private void OnEnable()
+    {
+        RebuildMesh();
+    }
+
+    // ── Public API ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Rebuild the point-cloud mesh from the current spawnPoints list.
+    /// spawnPoints are already in local space — no transform conversion needed.
+    /// </summary>
     public void RebuildMesh()
     {
         int count = spawnPoints.Count;
@@ -52,12 +88,13 @@ public class GrassPainter : MonoBehaviour
             return;
         }
 
+        // spawnPoints are already local-space — copy directly, no InverseTransformPoint
         Vector3[] verts = new Vector3[count];
         int[] indices = new int[count];
 
         for (int i = 0; i < count; i++)
         {
-            verts[i] = transform.InverseTransformPoint(spawnPoints[i]);
+            verts[i] = spawnPoints[i];
             indices[i] = i;
         }
 
@@ -68,6 +105,7 @@ public class GrassPainter : MonoBehaviour
         GetComponent<MeshFilter>().sharedMesh = mesh;
     }
 
+    /// <summary>Remove all painted points and clear the mesh.</summary>
     public void ClearAll()
     {
         spawnPoints.Clear();
@@ -75,18 +113,22 @@ public class GrassPainter : MonoBehaviour
     }
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  Custom Editor
+// ══════════════════════════════════════════════════════════════════════════════
 #if UNITY_EDITOR
 [CustomEditor(typeof(GrassPainter))]
 public class GrassPainterEditor : Editor
 {
     private struct BrushHit { public Vector3 point; public Vector3 normal; public bool valid; }
 
-    private BrushHit  _lastHit;
-    private bool      _isPainting;
-    private bool      _isErasing;
+    private BrushHit _lastHit;
+    private bool _isPainting;
     private const float StrokeCooldown = 0.05f;
-    private double      _lastStrokeTime;
+    private double _lastStrokeTime;
 
+    // ── Inspector GUI ─────────────────────────────────────────────────────────
     public override void OnInspectorGUI()
     {
         GrassPainter painter = (GrassPainter)target;
@@ -110,7 +152,6 @@ public class GrassPainterEditor : Editor
         }
 
         GUI.backgroundColor = Color.white;
-
         GUILayout.Space(4);
 
         GUI.backgroundColor = new Color(1f, 0.5f, 0.5f);
@@ -135,11 +176,13 @@ public class GrassPainterEditor : Editor
             MessageType.Info);
     }
 
+    // ── Scene GUI ─────────────────────────────────────────────────────────────
     private void OnSceneGUI()
     {
         GrassPainter painter = (GrassPainter)target;
 
         if (!painter.paintingMode) return;
+
         if (painter.targetSurface == null)
         {
             Handles.BeginGUI();
@@ -150,10 +193,11 @@ public class GrassPainterEditor : Editor
         }
 
         Event e = Event.current;
-
         int controlID = GUIUtility.GetControlID(FocusType.Passive);
+
         _lastHit = RaycastSurface(painter.targetSurface, e.mousePosition);
 
+        // ── Draw brush disc ───────────────────────────────────────────────
         if (_lastHit.valid)
         {
             bool erasing = e.shift;
@@ -168,87 +212,120 @@ public class GrassPainterEditor : Editor
             Handles.DrawSolidDisc(_lastHit.point, _lastHit.normal, radius);
         }
 
-        if (e.type == EventType.MouseDown && e.button == 0)
+        // ── Mouse input ───────────────────────────────────────────────────
+        // IMPORTANT: e.Use() and stroke logic must only run on actual mouse
+        // events. Layout and Repaint fire every frame and must never be consumed.
+        switch (e.type)
         {
-            _isPainting = true;
-            GUIUtility.hotControl = controlID;
-            e.Use();
+            case EventType.MouseDown when e.button == 0:
+                _isPainting = true;
+                GUIUtility.hotControl = controlID;
+                // Fire one stroke immediately on click (don't wait for cooldown)
+                _lastStrokeTime = -StrokeCooldown;
+                DoStroke(painter, e);
+                e.Use();
+                break;
+
+            case EventType.MouseUp when e.button == 0:
+                _isPainting = false;
+                GUIUtility.hotControl = 0;
+                e.Use();
+                break;
+
+            case EventType.MouseDrag when e.button == 0 && _isPainting && _lastHit.valid:
+                DoStroke(painter, e);
+                e.Use();
+                break;
+
+            case EventType.MouseMove:
+                SceneView.RepaintAll();
+                break;
         }
 
-        if (e.type == EventType.MouseUp && e.button == 0)
-        {
-            _isPainting = false;
-            GUIUtility.hotControl = 0;
-            e.Use();
-        }
-
-        if ((_isPainting || e.type == EventType.MouseDrag) && _lastHit.valid)
-        {
-            double now = EditorApplication.timeSinceStartup;
-            if (now - _lastStrokeTime >= StrokeCooldown)
-            {
-                _lastStrokeTime = now;
-
-                Undo.RecordObject(painter, e.shift ? "Erase Grass" : "Paint Grass");
-
-                if (e.shift)
-                    EraseAt(painter, _lastHit.point);
-                else
-                    PaintAt(painter, _lastHit.point, _lastHit.normal);
-
-                painter.RebuildMesh();
-                MarkDirty(painter);
-            }
-            e.Use();
-        }
-
-        if (e.type == EventType.MouseMove || e.type == EventType.MouseDrag)
-            SceneView.RepaintAll();
-
+        // Keep default scene-view controls suppressed while painting
         if (_isPainting)
             HandleUtility.AddDefaultControl(controlID);
     }
 
+    // ── Stroke dispatcher (cooldown lives here, not in OnSceneGUI) ───────────
+    private void DoStroke(GrassPainter painter, Event e)
+    {
+        if (!_lastHit.valid) return;
+
+        double now = EditorApplication.timeSinceStartup;
+        if (now - _lastStrokeTime < StrokeCooldown) return;
+        _lastStrokeTime = now;
+
+        Undo.RecordObject(painter, e.shift ? "Erase Grass" : "Paint Grass");
+
+        if (e.shift)
+            EraseAt(painter, _lastHit.point);
+        else
+            PaintAt(painter, _lastHit.point, _lastHit.normal);
+
+        painter.RebuildMesh();
+        MarkDirty(painter);
+        SceneView.RepaintAll();
+    }
+
+    // ── Paint ─────────────────────────────────────────────────────────────────
     private void PaintAt(GrassPainter painter, Vector3 centre, Vector3 normal)
     {
         int added = 0;
-        int attempts = 0;
-        int maxAttempts = painter.bladesPerStroke * 10;
 
-        while (added < painter.bladesPerStroke && attempts < maxAttempts)
+        // When minSpacing is 0, every candidate that snaps to the surface is
+        // accepted immediately — no rejection loop needed, so run exactly
+        // bladesPerStroke iterations.
+        // When minSpacing > 0, we need more attempts because some candidates
+        // will be rejected for being too close to existing points.
+        bool useSpacing = painter.minSpacing > 0f;
+        int maxAttempts = useSpacing ? painter.bladesPerStroke * 50 : painter.bladesPerStroke;
+
+        for (int attempts = 0; attempts < maxAttempts && added < painter.bladesPerStroke; attempts++)
         {
-            attempts++;
+            Vector2 rnd = Random.insideUnitCircle * painter.brushRadius;
 
-            Vector2 rnd     = Random.insideUnitCircle * painter.brushRadius;
-            Vector3 offset  = new Vector3(rnd.x, 0f, rnd.y);
-            Vector3 tangent  = Vector3.Cross(normal, Vector3.up);
+            // Build a tangent frame aligned to the surface normal
+            Vector3 tangent = Vector3.Cross(normal, Vector3.up);
             if (tangent.sqrMagnitude < 0.001f)
                 tangent = Vector3.Cross(normal, Vector3.forward);
             tangent.Normalize();
             Vector3 bitangent = Vector3.Cross(normal, tangent).normalized;
 
-            Vector3 candidate = centre
-                + tangent   * rnd.x
-                + bitangent * rnd.y;
+            Vector3 candidate = centre + tangent * rnd.x + bitangent * rnd.y;
 
-            Vector3 snapped;
-            if (!SnapToSurface(painter.targetSurface, candidate, normal, out snapped))
+            // Snap onto the actual surface geometry
+            Vector3 snappedWorld;
+            if (!SnapToSurface(painter.targetSurface, candidate, normal, out snappedWorld))
                 continue;
 
-            if (painter.minSpacing > 0f && TooClose(painter.spawnPoints, snapped, painter.minSpacing))
+            // Convert to local space once, at paint time
+            Vector3 snappedLocal = painter.transform.InverseTransformPoint(snappedWorld);
+
+            // Spacing check (skipped entirely when minSpacing == 0)
+            if (useSpacing && TooClose(painter.spawnPoints, snappedLocal, painter.minSpacing))
                 continue;
 
-            painter.spawnPoints.Add(snapped);
+            painter.spawnPoints.Add(snappedLocal);
             added++;
         }
     }
 
-    private void EraseAt(GrassPainter painter, Vector3 centre)
+    // ── Erase ─────────────────────────────────────────────────────────────────
+    private void EraseAt(GrassPainter painter, Vector3 worldCentre)
     {
-        float r2 = painter.eraseRadius * painter.eraseRadius;
-        painter.spawnPoints.RemoveAll(p =>
-            (p - centre).sqrMagnitude <= r2);
+        // Convert erase centre to local space to match stored points
+        Vector3 localCentre = painter.transform.InverseTransformPoint(worldCentre);
+
+        // Scale the erase radius by the inverse of the object's lossy scale
+        // so it behaves correctly even if the painter object is scaled
+        float localRadius = painter.eraseRadius / painter.transform.lossyScale.x;
+        float r2 = localRadius * localRadius;
+
+        painter.spawnPoints.RemoveAll(p => (p - localCentre).sqrMagnitude <= r2);
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private BrushHit RaycastSurface(Collider col, Vector2 mousePos)
     {
@@ -261,6 +338,7 @@ public class GrassPainterEditor : Editor
 
     private bool SnapToSurface(Collider col, Vector3 candidate, Vector3 normal, out Vector3 result)
     {
+        // First try: cast along the surface normal
         Vector3 origin = candidate + normal * 0.5f;
         Ray ray = new Ray(origin, -normal);
         RaycastHit hit;
@@ -269,6 +347,7 @@ public class GrassPainterEditor : Editor
             result = hit.point;
             return true;
         }
+        // Fallback: cast straight down
         ray = new Ray(candidate + Vector3.up * 0.5f, Vector3.down);
         if (col.Raycast(ray, out hit, 2f))
         {
@@ -279,12 +358,11 @@ public class GrassPainterEditor : Editor
         return false;
     }
 
-    private bool TooClose(List<Vector3> points, Vector3 candidate, float minDist)
+    private bool TooClose(List<Vector3> points, Vector3 candidateLocal, float minDist)
     {
         float md2 = minDist * minDist;
-        int start = Mathf.Max(0, points.Count - 200);
-        for (int i = start; i < points.Count; i++)
-            if ((points[i] - candidate).sqrMagnitude < md2) return true;
+        for (int i = 0; i < points.Count; i++)
+            if ((points[i] - candidateLocal).sqrMagnitude < md2) return true;
         return false;
     }
 
