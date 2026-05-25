@@ -143,7 +143,7 @@ public class SkyboxController : MonoBehaviour
         skyboxMaterial.SetTexture(PropSpectrumTex, _spectrumTex);
     }
 
-#if UNITY_EDITOR
+    #if UNITY_EDITOR
     void OnDrawGizmos()
     {
         Vector3 origin = orbitPivot ? orbitPivot.position : Vector3.zero;
@@ -163,5 +163,5 @@ public class SkyboxController : MonoBehaviour
         Gizmos.DrawSphere(moonPos, 0.10f);
         Gizmos.DrawLine(origin, moonPos);
     }
-#endif
+    #endif
 }

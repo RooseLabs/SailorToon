@@ -49,6 +49,7 @@ Shader "Custom/ProceduralSkybox"
         _BarGlowColor   ("Bar Glow Color", Color) = (1.0, 0.3, 0.8, 1)
         _SpectrumTex    ("Spectrum Texture (256x1)", 2D) = "black" {}
         _SpectrumBoost  ("Spectrum Boost", Range(0.1, 10)) = 3.0
+        _HorizonBendScale ("Horizon Bend Scale (matches Rolling Log)", Range(0, 100)) = 30.0
     }
 
     SubShader
@@ -62,6 +63,8 @@ Shader "Custom/ProceduralSkybox"
             #pragma vertex   vert
             #pragma fragment frag
             #pragma multi_compile _MODE_DAYNIGHT _MODE_SYNTHWAVE
+            #pragma multi_compile _ _ENABLE_ROLLING_LOG
+            #pragma multi_compile _ _ROLLING_LOG_SPHERE
             #pragma target 3.0
 
             #include "UnityCG.cginc"
@@ -94,10 +97,13 @@ Shader "Custom/ProceduralSkybox"
             float  _BarGlow;
 
             sampler2D _SpectrumTex;
-            float  _SpectrumBoost;
+            float _SpectrumBoost;
+
+            float _RL_Amount;
+            float _HorizonBendScale;
 
             struct appdata { float4 vertex : POSITION; };
-            struct v2f    { float4 pos : SV_POSITION; float3 dir : TEXCOORD0; };
+            struct v2f { float4 pos : SV_POSITION; float3 dir : TEXCOORD0; };
 
             v2f vert(appdata v)
             {
@@ -175,10 +181,26 @@ Shader "Custom/ProceduralSkybox"
                 return tex2Dlod(_SpectrumTex, float4(t, 0.5, 0, 0)).r * _SpectrumBoost;
             }
 
+            // Downward shift of the apparent horizon to match the Rolling-Log-curved ground.
+            // Sphere mode: uniform in dir.xz. Log mode: depth (dir.z) only.
+            float HorizonDip(float3 dir)
+            {
+            #ifdef _ENABLE_ROLLING_LOG
+                #ifdef _ROLLING_LOG_SPHERE
+                float horizDist2 = dir.x * dir.x + dir.z * dir.z;
+                #else
+                float horizDist2 = dir.z * dir.z;
+                #endif
+                return _RL_Amount * _HorizonBendScale * horizDist2;
+            #else
+                return 0.0;
+            #endif
+            }
+
             float4 spectrumBars(float3 dir)
             {
                 float barX = atan2(dir.z, dir.x) / (2.0 * 3.14159265) + 0.5;
-                float barY = dir.y - _BarYOffset;
+                float barY = dir.y + HorizonDip(dir) - _BarYOffset;
 
                 float bandLimit = _BarHeight + _BarGlow + 0.01;
                 if (abs(barY) > bandLimit) return float4(0,0,0,0);
@@ -195,9 +217,8 @@ Shader "Custom/ProceduralSkybox"
                 float quadID      = fmod(barID, _BarCount * 0.5);
                 float mirrorID    = quadID < quarterBars ? quadID : _BarCount * 0.5 - 1.0 - quadID;
                 float specU       = (mirrorID + 0.5) / quarterBars * 0.5;
-                float  barAmp   = saturate(sampleSpectrum(specU));
-
-                float  barTop   = barAmp * _BarHeight;
+                float barAmp      = saturate(sampleSpectrum(specU));
+                float barTop      = barAmp * _BarHeight;
 
                 if (barY < 0.0 || barY > barTop + _BarGlow)
                     return float4(0,0,0,0);
@@ -229,7 +250,7 @@ Shader "Custom/ProceduralSkybox"
                 float3 dir  = normalize(i.dir);
                 float  time = _Time.y;
 
-                float  up      = dir.y;
+                float  up      = dir.y + HorizonDip(dir);
                 float  horizon = 1.0 - abs(up);
                 float  nb      = saturate(_NightBlend);
                 float  sunsetT = smoothstep(0.0, 0.5, nb) * (1.0 - smoothstep(0.5, 1.0, nb));
