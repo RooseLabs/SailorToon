@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -18,45 +19,53 @@ using UnityEditor.SceneManagement;
 ///   6. Use "Clear All Grass" to start over.
 ///
 /// Data contract:
-///   spawnPoints  — stored in LOCAL space of this GameObject's transform.
-///   The mesh vertices are also in local space (no conversion needed in RebuildMesh).
-///   PaintAt converts world-space hit points to local space before storing.
+///   blades — position+normal stored in LOCAL space of this GameObject's transform.
+///   The mesh vertices/normals are also in local space (no conversion in RebuildMesh).
+///   PaintAt converts world-space hit data to local space before storing.
 ///   EraseAt and TooClose work in local space too.
 /// </summary>
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class GrassPainter : MonoBehaviour
 {
-    [Header("Target Surface")]
-    [Tooltip("The mesh collider (or any GameObject with a Collider) to paint on.")]
+    [Serializable]
+    public struct BladeData
+    {
+        public Vector3 position;
+        public Vector3 normal;
+
+        public BladeData(Vector3 position, Vector3 normal)
+        {
+            this.position = position;
+            this.normal = normal;
+        }
+    }
+
+    [Header("Target Surface")] [Tooltip("The mesh collider (or any GameObject with a Collider) to paint on.")]
     public Collider targetSurface;
 
-    [Header("Brush Settings")]
-    [Tooltip("Radius of the paint brush in world units.")]
-    [Range(0.1f, 20f)]
+    [Header("Brush Settings")] [Tooltip("Radius of the paint brush in world units.")] [Range(0.1f, 20f)]
     public float brushRadius = 1.5f;
 
-    [Tooltip("How many blade spawn points are added per brush stroke tick.")]
-    [Range(1, 50)]
+    [Tooltip("How many blade spawn points are added per brush stroke tick.")] [Range(1, 50)]
     public int bladesPerStroke = 8;
 
-    [Tooltip("Minimum distance between any two blade roots (avoids clumping). Set to 0 to disable.")]
-    [Range(0f, 1f)]
+    [Tooltip("Minimum distance between any two blade roots (avoids clumping). Set to 0 to disable.")] [Range(0f, 1f)]
     public float minSpacing = 0f;
 
-    [Header("Erase Settings")]
-    [Tooltip("Radius used when erasing (hold Shift while painting).")]
-    [Range(0.1f, 20f)]
+    [Header("Erase Settings")] [Tooltip("Radius used when erasing (hold Shift while painting).")] [Range(0.1f, 20f)]
     public float eraseRadius = 2f;
 
-    [Header("State")]
-    [Tooltip("Toggle to enter / exit painting mode.")]
+    [Header("State")] [Tooltip("Toggle to enter / exit painting mode.")]
     public bool paintingMode = false;
 
-    // ── Serialised point list (LOCAL space) ───────────────────────────────────
-    // Stored in local space so RebuildMesh never needs to re-transform them.
-    // This survives domain reloads and scene saves correctly.
-    [HideInInspector]
-    public List<Vector3> spawnPoints = new List<Vector3>();
+    // Serialised blade list (LOCAL space). Survives domain reloads and scene saves.
+    [HideInInspector] public List<BladeData> blades = new();
+
+    // Reused mesh + scratch buffers so RebuildMesh allocates nothing in steady state.
+    private Mesh m_mesh;
+    private readonly List<Vector3> m_scratchVerts = new();
+    private readonly List<Vector3> m_scratchNormals = new();
+    private readonly List<int> m_scratchIndices = new();
 
     // ── Unity callbacks ───────────────────────────────────────────────────────
 
@@ -68,47 +77,71 @@ public class GrassPainter : MonoBehaviour
         RebuildMesh();
     }
 
+    private void OnDestroy()
+    {
+        if (m_mesh == null) return;
+        #if UNITY_EDITOR
+        if (!Application.isPlaying) DestroyImmediate(m_mesh);
+        else Destroy(m_mesh);
+        #else
+            Destroy(_mesh);
+        #endif
+        m_mesh = null;
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Rebuild the point-cloud mesh from the current spawnPoints list.
-    /// spawnPoints are already in local space — no transform conversion needed.
+    /// Rebuild the point-cloud mesh from the current blades list.
+    /// Reuses a cached Mesh and scratch lists to avoid per-stroke allocations.
     /// </summary>
     public void RebuildMesh()
     {
-        int count = spawnPoints.Count;
+        if (m_mesh == null)
+        {
+            m_mesh = new Mesh
+            {
+                name = "GrassPaintedCloud",
+                indexFormat = UnityEngine.Rendering.IndexFormat.UInt32,
+                hideFlags = HideFlags.DontSave
+            };
+        }
 
-        Mesh mesh = new Mesh();
-        mesh.name = "GrassPaintedCloud";
-        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        m_mesh.Clear();
+
+        int count = blades.Count;
+        MeshFilter meshFilter = GetComponent<MeshFilter>();
 
         if (count == 0)
         {
-            GetComponent<MeshFilter>().sharedMesh = mesh;
+            meshFilter.sharedMesh = m_mesh;
             return;
         }
 
-        // spawnPoints are already local-space — copy directly, no InverseTransformPoint
-        Vector3[] verts = new Vector3[count];
-        int[] indices = new int[count];
+        m_scratchVerts.Clear();
+        m_scratchNormals.Clear();
+        m_scratchIndices.Clear();
 
         for (int i = 0; i < count; i++)
         {
-            verts[i] = spawnPoints[i];
-            indices[i] = i;
+            BladeData b = blades[i];
+            m_scratchVerts.Add(b.position);
+            m_scratchNormals.Add(b.normal);
+            m_scratchIndices.Add(i);
         }
 
-        mesh.vertices = verts;
-        mesh.SetIndices(indices, MeshTopology.Points, 0);
-        mesh.RecalculateBounds();
+        m_mesh.SetVertices(m_scratchVerts);
+        m_mesh.SetNormals(m_scratchNormals);
+        m_mesh.SetIndices(m_scratchIndices, MeshTopology.Points, 0);
+        m_mesh.RecalculateBounds();
 
-        GetComponent<MeshFilter>().sharedMesh = mesh;
+        meshFilter.sharedMesh = m_mesh;
     }
 
-    /// <summary>Remove all painted points and clear the mesh.</summary>
+    /// <summary>Remove all painted blades and clear the mesh.</summary>
     public void ClearAll()
     {
-        spawnPoints.Clear();
+        blades.Clear();
         RebuildMesh();
     }
 }
@@ -121,12 +154,17 @@ public class GrassPainter : MonoBehaviour
 [CustomEditor(typeof(GrassPainter))]
 public class GrassPainterEditor : Editor
 {
-    private struct BrushHit { public Vector3 point; public Vector3 normal; public bool valid; }
+    private struct BrushHit
+    {
+        public Vector3 point;
+        public Vector3 normal;
+        public bool valid;
+    }
 
-    private BrushHit _lastHit;
-    private bool _isPainting;
+    private BrushHit m_lastHit;
+    private bool m_isPainting;
     private const float StrokeCooldown = 0.05f;
-    private double _lastStrokeTime;
+    private double m_lastStrokeTime;
 
     // ── Inspector GUI ─────────────────────────────────────────────────────────
     public override void OnInspectorGUI()
@@ -142,8 +180,9 @@ public class GrassPainterEditor : Editor
             : new Color(1f, 0.85f, 0.4f);
 
         if (GUILayout.Button(
-                painter.paintingMode ? "🖌  Painting Mode  ON  (click to disable)"
-                                     : "🖌  Enable Painting Mode",
+                painter.paintingMode
+                    ? "🖌  Painting Mode  ON  (click to disable)"
+                    : "🖌  Enable Painting Mode",
                 GUILayout.Height(34)))
         {
             painter.paintingMode = !painter.paintingMode;
@@ -156,20 +195,20 @@ public class GrassPainterEditor : Editor
 
         GUI.backgroundColor = new Color(1f, 0.5f, 0.5f);
         if (GUILayout.Button("🗑  Clear All Grass", GUILayout.Height(28)))
-        {
-            if (EditorUtility.DisplayDialog("Clear Grass",
+            if (painter.blades.Count > 0 &&
+                EditorUtility.DisplayDialog("Clear Grass",
                     "Remove all painted grass points?", "Yes", "Cancel"))
             {
-                Undo.RecordObject(painter, "Clear Grass");
+                Undo.RegisterCompleteObjectUndo(painter, "Clear Grass");
                 painter.ClearAll();
                 MarkDirty(painter);
             }
-        }
+
         GUI.backgroundColor = Color.white;
 
         GUILayout.Space(6);
         EditorGUILayout.HelpBox(
-            $"Blade count: {painter.spawnPoints.Count}\n\n" +
+            $"Blade count: {painter.blades.Count}\n\n" +
             "• Enable Painting Mode, then click/drag in the Scene view to add grass.\n" +
             "• Hold  Shift  to erase.\n" +
             "• Disable Painting Mode when finished.",
@@ -195,10 +234,10 @@ public class GrassPainterEditor : Editor
         Event e = Event.current;
         int controlID = GUIUtility.GetControlID(FocusType.Passive);
 
-        _lastHit = RaycastSurface(painter.targetSurface, e.mousePosition);
+        m_lastHit = RaycastSurface(painter.targetSurface, e.mousePosition);
 
         // ── Draw brush disc ───────────────────────────────────────────────
-        if (_lastHit.valid)
+        if (m_lastHit.valid)
         {
             bool erasing = e.shift;
             float radius = erasing ? painter.eraseRadius : painter.brushRadius;
@@ -207,9 +246,9 @@ public class GrassPainterEditor : Editor
                 : new Color(0.3f, 1f, 0.3f, 0.8f);
 
             Handles.color = discColor;
-            Handles.DrawWireDisc(_lastHit.point, _lastHit.normal, radius);
+            Handles.DrawWireDisc(m_lastHit.point, m_lastHit.normal, radius);
             Handles.color = new Color(discColor.r, discColor.g, discColor.b, 0.08f);
-            Handles.DrawSolidDisc(_lastHit.point, _lastHit.normal, radius);
+            Handles.DrawSolidDisc(m_lastHit.point, m_lastHit.normal, radius);
         }
 
         // ── Mouse input ───────────────────────────────────────────────────
@@ -218,21 +257,21 @@ public class GrassPainterEditor : Editor
         switch (e.type)
         {
             case EventType.MouseDown when e.button == 0:
-                _isPainting = true;
+                m_isPainting = true;
                 GUIUtility.hotControl = controlID;
                 // Fire one stroke immediately on click (don't wait for cooldown)
-                _lastStrokeTime = -StrokeCooldown;
+                m_lastStrokeTime = -StrokeCooldown;
                 DoStroke(painter, e);
                 e.Use();
                 break;
 
             case EventType.MouseUp when e.button == 0:
-                _isPainting = false;
+                m_isPainting = false;
                 GUIUtility.hotControl = 0;
                 e.Use();
                 break;
 
-            case EventType.MouseDrag when e.button == 0 && _isPainting && _lastHit.valid:
+            case EventType.MouseDrag when e.button == 0 && m_isPainting && m_lastHit.valid:
                 DoStroke(painter, e);
                 e.Use();
                 break;
@@ -243,25 +282,27 @@ public class GrassPainterEditor : Editor
         }
 
         // Keep default scene-view controls suppressed while painting
-        if (_isPainting)
+        if (m_isPainting)
             HandleUtility.AddDefaultControl(controlID);
     }
 
     // ── Stroke dispatcher (cooldown lives here, not in OnSceneGUI) ───────────
+    // PaintAt/EraseAt record undo lazily (only when they actually mutate) and
+    // return how many blades changed — we skip RebuildMesh/MarkDirty when zero
+    // so dragging over empty air doesn't dirty the scene.
     private void DoStroke(GrassPainter painter, Event e)
     {
-        if (!_lastHit.valid) return;
+        if (!m_lastHit.valid) return;
 
         double now = EditorApplication.timeSinceStartup;
-        if (now - _lastStrokeTime < StrokeCooldown) return;
-        _lastStrokeTime = now;
+        if (now - m_lastStrokeTime < StrokeCooldown) return;
+        m_lastStrokeTime = now;
 
-        Undo.RecordObject(painter, e.shift ? "Erase Grass" : "Paint Grass");
+        int changed = e.shift
+            ? EraseAt(painter, m_lastHit.point)
+            : PaintAt(painter, m_lastHit.point, m_lastHit.normal);
 
-        if (e.shift)
-            EraseAt(painter, _lastHit.point);
-        else
-            PaintAt(painter, _lastHit.point, _lastHit.normal);
+        if (changed == 0) return;
 
         painter.RebuildMesh();
         MarkDirty(painter);
@@ -269,7 +310,8 @@ public class GrassPainterEditor : Editor
     }
 
     // ── Paint ─────────────────────────────────────────────────────────────────
-    private void PaintAt(GrassPainter painter, Vector3 centre, Vector3 normal)
+    // Returns the number of blades actually added (0 if nothing accepted).
+    private int PaintAt(GrassPainter painter, Vector3 centre, Vector3 normal)
     {
         int added = 0;
 
@@ -283,7 +325,7 @@ public class GrassPainterEditor : Editor
 
         for (int attempts = 0; attempts < maxAttempts && added < painter.bladesPerStroke; attempts++)
         {
-            Vector2 rnd = Random.insideUnitCircle * painter.brushRadius;
+            Vector2 rnd = UnityEngine.Random.insideUnitCircle * painter.brushRadius;
 
             // Build a tangent frame aligned to the surface normal
             Vector3 tangent = Vector3.Cross(normal, Vector3.up);
@@ -295,26 +337,34 @@ public class GrassPainterEditor : Editor
             Vector3 candidate = centre + tangent * rnd.x + bitangent * rnd.y;
 
             // Snap onto the actual surface geometry
-            Vector3 snappedWorld;
-            if (!SnapToSurface(painter.targetSurface, candidate, normal, out snappedWorld))
+            if (!SnapToSurface(painter.targetSurface, candidate, normal,
+                    out Vector3 snappedWorld, out Vector3 snappedNormalWorld))
                 continue;
 
             // Convert to local space once, at paint time
             Vector3 snappedLocal = painter.transform.InverseTransformPoint(snappedWorld);
+            Vector3 snappedNormalLocal = painter.transform.InverseTransformDirection(snappedNormalWorld).normalized;
 
             // Spacing check (skipped entirely when minSpacing == 0)
-            if (useSpacing && TooClose(painter.spawnPoints, snappedLocal, painter.minSpacing))
+            if (useSpacing && TooClose(painter.blades, snappedLocal, painter.minSpacing))
                 continue;
 
-            painter.spawnPoints.Add(snappedLocal);
+            // Capture pre-mutation state for undo the first time we actually add.
+            if (added == 0)
+                Undo.RegisterCompleteObjectUndo(painter, "Paint Grass");
+
+            painter.blades.Add(new GrassPainter.BladeData(snappedLocal, snappedNormalLocal));
             added++;
         }
+
+        return added;
     }
 
     // ── Erase ─────────────────────────────────────────────────────────────────
-    private void EraseAt(GrassPainter painter, Vector3 worldCentre)
+    // Returns the number of blades actually removed (0 if none were in range).
+    private int EraseAt(GrassPainter painter, Vector3 worldCentre)
     {
-        // Convert erase centre to local space to match stored points
+        // Convert erase center to local space to match stored points
         Vector3 localCentre = painter.transform.InverseTransformPoint(worldCentre);
 
         // Scale the erase radius by the inverse of the object's lossy scale
@@ -322,7 +372,22 @@ public class GrassPainterEditor : Editor
         float localRadius = painter.eraseRadius / painter.transform.lossyScale.x;
         float r2 = localRadius * localRadius;
 
-        painter.spawnPoints.RemoveAll(p => (p - localCentre).sqrMagnitude <= r2);
+        // Pre-check: do nothing (and skip undo capture) if no blades are in range.
+        int countBefore = painter.blades.Count;
+        bool anyHit = false;
+        for (int i = 0; i < countBefore; i++)
+        {
+            if ((painter.blades[i].position - localCentre).sqrMagnitude <= r2)
+            {
+                anyHit = true;
+                break;
+            }
+        }
+        if (!anyHit) return 0;
+
+        Undo.RegisterCompleteObjectUndo(painter, "Erase Grass");
+        painter.blades.RemoveAll(b => (b.position - localCentre).sqrMagnitude <= r2);
+        return countBefore - painter.blades.Count;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -330,39 +395,44 @@ public class GrassPainterEditor : Editor
     private BrushHit RaycastSurface(Collider col, Vector2 mousePos)
     {
         Ray ray = HandleUtility.GUIPointToWorldRay(mousePos);
-        RaycastHit hit;
-        if (col.Raycast(ray, out hit, 1000f))
+        if (col.Raycast(ray, out RaycastHit hit, 1000f))
             return new BrushHit { point = hit.point, normal = hit.normal, valid = true };
         return new BrushHit { valid = false };
     }
 
-    private bool SnapToSurface(Collider col, Vector3 candidate, Vector3 normal, out Vector3 result)
+    private bool SnapToSurface(Collider col, Vector3 candidate, Vector3 normal,
+        out Vector3 result, out Vector3 resultNormal)
     {
         // First try: cast along the surface normal
         Vector3 origin = candidate + normal * 0.5f;
-        Ray ray = new Ray(origin, -normal);
-        RaycastHit hit;
-        if (col.Raycast(ray, out hit, 2f))
+        Ray ray = new(origin, -normal);
+        if (col.Raycast(ray, out RaycastHit hit, 2f))
         {
             result = hit.point;
+            resultNormal = hit.normal;
             return true;
         }
+
         // Fallback: cast straight down
         ray = new Ray(candidate + Vector3.up * 0.5f, Vector3.down);
         if (col.Raycast(ray, out hit, 2f))
         {
             result = hit.point;
+            resultNormal = hit.normal;
             return true;
         }
+
         result = candidate;
+        resultNormal = normal;
         return false;
     }
 
-    private bool TooClose(List<Vector3> points, Vector3 candidateLocal, float minDist)
+    private bool TooClose(List<GrassPainter.BladeData> points, Vector3 candidateLocal, float minDist)
     {
         float md2 = minDist * minDist;
         for (int i = 0; i < points.Count; i++)
-            if ((points[i] - candidateLocal).sqrMagnitude < md2) return true;
+            if ((points[i].position - candidateLocal).sqrMagnitude < md2)
+                return true;
         return false;
     }
 
