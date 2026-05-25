@@ -6,11 +6,14 @@ Shader "Custom/StandardSailorToon"
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
+        [Enum(Off,0,Front,1,Back,2)] _Cull ("Cull Mode", Float) = 2
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
         LOD 200
+
+        Cull [_Cull]
 
         CGPROGRAM
         // Standard PBR lighting + shadow casting/receiving on all light types.
