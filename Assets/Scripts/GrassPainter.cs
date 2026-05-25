@@ -311,7 +311,7 @@ public class GrassPainterEditor : Editor
 
     // ── Paint ─────────────────────────────────────────────────────────────────
     // Returns the number of blades actually added (0 if nothing accepted).
-    private int PaintAt(GrassPainter painter, Vector3 centre, Vector3 normal)
+    private int PaintAt(GrassPainter painter, Vector3 center, Vector3 normal)
     {
         int added = 0;
 
@@ -334,7 +334,7 @@ public class GrassPainterEditor : Editor
             tangent.Normalize();
             Vector3 bitangent = Vector3.Cross(normal, tangent).normalized;
 
-            Vector3 candidate = centre + tangent * rnd.x + bitangent * rnd.y;
+            Vector3 candidate = center + tangent * rnd.x + bitangent * rnd.y;
 
             // Snap onto the actual surface geometry
             if (!SnapToSurface(painter.targetSurface, candidate, normal,
@@ -362,10 +362,10 @@ public class GrassPainterEditor : Editor
 
     // ── Erase ─────────────────────────────────────────────────────────────────
     // Returns the number of blades actually removed (0 if none were in range).
-    private int EraseAt(GrassPainter painter, Vector3 worldCentre)
+    private int EraseAt(GrassPainter painter, Vector3 worldCenter)
     {
         // Convert erase center to local space to match stored points
-        Vector3 localCentre = painter.transform.InverseTransformPoint(worldCentre);
+        Vector3 localCenter = painter.transform.InverseTransformPoint(worldCenter);
 
         // Scale the erase radius by the inverse of the object's lossy scale
         // so it behaves correctly even if the painter object is scaled
@@ -377,7 +377,7 @@ public class GrassPainterEditor : Editor
         bool anyHit = false;
         for (int i = 0; i < countBefore; i++)
         {
-            if ((painter.blades[i].position - localCentre).sqrMagnitude <= r2)
+            if ((painter.blades[i].position - localCenter).sqrMagnitude <= r2)
             {
                 anyHit = true;
                 break;
@@ -386,7 +386,7 @@ public class GrassPainterEditor : Editor
         if (!anyHit) return 0;
 
         Undo.RegisterCompleteObjectUndo(painter, "Erase Grass");
-        painter.blades.RemoveAll(b => (b.position - localCentre).sqrMagnitude <= r2);
+        painter.blades.RemoveAll(b => (b.position - localCenter).sqrMagnitude <= r2);
         return countBefore - painter.blades.Count;
     }
 

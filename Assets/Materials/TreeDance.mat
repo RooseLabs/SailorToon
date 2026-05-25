@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: TreeDance
+  m_Shader: {fileID: 4800000, guid: ce773a3d56ca6d148b1954a54cbbcb36, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _LeafPalette:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _LeafPallette:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _ColorChangeSpeed: 0.2
+    - _Glossiness: 0.5
+    - _Metallic: 0
+    - _MyBands: 2.9
+    - _Range: 0
+    - _SwayingSpeed: 3
+    - _SwayingStrength: 0.58
+    - _TopInfluence: 0.2
+    - _WindFrequency: -0
+    - _WindSpeed: 2.47
+    - _WindStrength: 1.2
+    m_Colors:
+    - _Color: {r: 0.7114639, g: 1, b: 0.2396226, a: 1}
+    - _Color1: {r: 0.7584905, g: 0.09080521, b: 0, a: 1}
+    - _Color2: {r: 0.6301887, g: 0, b: 0, a: 1}
+    - _Color3: {r: 0.4666667, g: 1, b: 0, a: 1}
+    - _ColorA: {r: 0.6620644, g: 1, b: 0.020754695, a: 1}
+    - _ColorB: {r: 0, g: 0.7283019, b: 0.34853232, a: 1}
+    - _ColorC: {r: 1, g: 0.6063272, b: 0, a: 1}
+    - _ColorD: {r: 1, g: 0.69775, b: 0.1716981, a: 1}
+    - _ColorTrunk: {r: 0.39999998, g: 0.19999996, b: 0.09999997, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

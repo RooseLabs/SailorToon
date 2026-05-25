@@ -8,7 +8,7 @@ public class WindController : MonoBehaviour
 
     [Header("Wind")]
     [Tooltip("World-space direction the wind blows toward. Magnitude is ignored; only direction is used.")]
-    public Vector3 windDirection = new Vector3(1f, 0f, 0.3f);
+    public Vector3 windDirection = new(1f, 0f, 0.3f);
 
     [Header("Variation")]
     [Tooltip("Degrees of yaw the direction can drift over time. 0 = perfectly stable.")]

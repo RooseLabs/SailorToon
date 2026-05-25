@@ -119,23 +119,23 @@ Shader "Custom/GrassGeometry"
             {
                 float t = i * INV;
                 float width_t = (1.0 - t);
-                float3 centre = basePos + bladeUp * (bladeH * t);
+                float3 center = basePos + bladeUp * (bladeH * t);
 
                 float mask = t * t;
-                centre += WindDisplacement(basePos, mask);
+                center += WindDisplacement(basePos, mask);
 
                 if (i < SEG)
                 {
-                    outPos[idx] = centre - right * (bladeW * 0.5 * width_t);
+                    outPos[idx] = center - right * (bladeW * 0.5 * width_t);
                     outHeight[idx] = t;
                     idx++;
-                    outPos[idx] = centre + right * (bladeW * 0.5 * width_t);
+                    outPos[idx] = center + right * (bladeW * 0.5 * width_t);
                     outHeight[idx] = t;
                     idx++;
                 }
                 else
                 {
-                    outPos[idx] = centre;
+                    outPos[idx] = center;
                     outHeight[idx] = 1.0;
                     idx++;
                 }
