@@ -21,138 +21,143 @@ public class SkyboxController : MonoBehaviour
     [Header("Sun & Moon")]
     [Tooltip("Pivot for the sun/moon arc. Defaults to world origin.")]
     public Transform orbitPivot;
-    public float sunOrbitRadius = 1f;
     public float moonOrbitOffset = 180f;
 
-    [Header("Music Visualizer (Synthwave Mode)")]
+    [Header("Music Visualizer (Synthwave Sky)")]
     [Range(64, 8192)] public int spectrumSamples = 256;
     public FFTWindow fftWindow = FFTWindow.BlackmanHarris;
     [Tooltip("Low-pass smoothing for spectrum. 0 = instant, 1 = frozen.")]
     [Range(0f, 0.99f)] public float spectrumSmoothing = 0.85f;
 
-    private Texture2D _spectrumTex;
-    private float[] _spectrumRaw;
-    private float[] _spectrumSmooth;
-    private Color[] _spectrumPixels;
+    private Texture2D m_spectrumTex;
+    private float[] m_spectrumRaw;
+    private float[] m_spectrumSmooth;
+    private Color[] m_spectrumPixels;
 
-    private static readonly int PropTimeOfDay = Shader.PropertyToID("_TimeOfDay");
-    private static readonly int PropNightBlend = Shader.PropertyToID("_NightBlend");
-    private static readonly int PropSunDir = Shader.PropertyToID("_SunDir");
-    private static readonly int PropMoonDir = Shader.PropertyToID("_MoonDir");
+    private static readonly int PropTimeOfDay   = Shader.PropertyToID("_TimeOfDay");
+    private static readonly int PropSunDir      = Shader.PropertyToID("_SunDir");
+    private static readonly int PropMoonDir     = Shader.PropertyToID("_MoonDir");
     private static readonly int PropSpectrumTex = Shader.PropertyToID("_SpectrumTex");
-    private static readonly int PropModeKw_DayNight = Shader.PropertyToID("_MODE_DAYNIGHT");
-    private static readonly int PropModeKw_Synthwave = Shader.PropertyToID("_MODE_SYNTHWAVE");
 
-    public enum SkyMode { DayNight, Synthwave }
+    // Sky bits
+    private const int BitSkyDayNight  = 1 << 0;  //  1
+    private const int BitSkySynthwave = 1 << 1;  //  2
+    // Sun bits
+    private const int BitSunStandard   = 1 << 2;  //  4
+    private const int BitSunSynthwave  = 1 << 3;  //  8
+    private const int BitSunRaymarched = 1 << 4;  // 16
+    private const int BitSunTextured   = 1 << 5;  // 32
 
-    void OnEnable()
+    // Each mode is an OR of one sky bit and one sun bit.
+    public enum SkyMode
+    {
+        DayNight            = BitSkyDayNight  | BitSunStandard,
+        Synthwave           = BitSkySynthwave | BitSunSynthwave,
+        RaymarchedDayNight  = BitSkyDayNight  | BitSunRaymarched,
+        RaymarchedSynth     = BitSkySynthwave | BitSunRaymarched,
+        TeletubbiesDayNight = BitSkyDayNight  | BitSunTextured,
+        TeletubbiesSynth    = BitSkySynthwave | BitSunTextured
+    }
+
+    // Parallel arrays — index order must match the sun bit order above.
+    private static readonly int[] SunBits = { BitSunStandard, BitSunSynthwave, BitSunRaymarched, BitSunTextured };
+    private static readonly string[] SunKeywords = {"_SUNMODE_STANDARD", "_SUNMODE_SYNTHWAVE", "_SUNMODE_RAYMARCHED", "_SUNMODE_TEXTURED" };
+
+    private void OnEnable()
     {
         if (skyboxMaterial == null)
             skyboxMaterial = RenderSettings.skybox;
-
         InitSpectrum();
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
-        if (_spectrumTex != null)
-            DestroyImmediate(_spectrumTex);
+        if (m_spectrumTex != null)
+            DestroyImmediate(m_spectrumTex);
     }
 
-    void Update()
+    private void Update()
     {
-        if (skyboxMaterial == null) return;
+        if (!skyboxMaterial) return;
 
-        if (mode == SkyMode.Synthwave)
+        int m = (int)mode;
+
+        // Sky keyword
+        bool skyIsSynthwave = (m & BitSkySynthwave) != 0;
+        skyboxMaterial.EnableKeyword (skyIsSynthwave ? "_MODE_SYNTHWAVE" : "_MODE_DAYNIGHT");
+        skyboxMaterial.DisableKeyword(skyIsSynthwave ? "_MODE_DAYNIGHT"  : "_MODE_SYNTHWAVE");
+
+        // Sun keyword — enable whichever bit is set in the current mode
+        for (int i = 0; i < SunBits.Length; i++)
         {
-            skyboxMaterial.EnableKeyword("_MODE_SYNTHWAVE");
-            skyboxMaterial.DisableKeyword("_MODE_DAYNIGHT");
-        }
-        else
-        {
-            skyboxMaterial.DisableKeyword("_MODE_SYNTHWAVE");
-            skyboxMaterial.EnableKeyword("_MODE_DAYNIGHT");
+            if ((m & SunBits[i]) != 0) skyboxMaterial.EnableKeyword(SunKeywords[i]);
+            else skyboxMaterial.DisableKeyword(SunKeywords[i]);
         }
 
         if (autoAdvanceTime && Application.isPlaying)
-        {
             timeOfDay = (timeOfDay + Time.deltaTime * minutesPerSecond / 1440f) % 1f;
-        }
 
         skyboxMaterial.SetFloat(PropTimeOfDay, timeOfDay);
 
-        float nb = ComputeNightBlend(timeOfDay);
-        skyboxMaterial.SetFloat(PropNightBlend, nb);
-
-        float sunAngle = timeOfDay * 360f - 90f;
+        float sunAngle  = timeOfDay * 360f;
         float moonAngle = sunAngle + moonOrbitOffset;
 
-        Vector3 sunDir = AngleToDir(sunAngle);
-        Vector3 moonDir = AngleToDir(moonAngle);
+        skyboxMaterial.SetVector(PropSunDir,  AngleToDir(sunAngle));
+        skyboxMaterial.SetVector(PropMoonDir, AngleToDir(moonAngle));
 
-        skyboxMaterial.SetVector(PropSunDir, sunDir);
-        skyboxMaterial.SetVector(PropMoonDir, moonDir);
-
-        if (mode == SkyMode.Synthwave)
+        if (skyIsSynthwave)
             UpdateSpectrum();
     }
 
-    static float ComputeNightBlend(float t)
-    {
-        float dist = Mathf.Abs(t - 0.5f);
-        float raw = 1.0f - (dist / 0.5f);
-        return Mathf.SmoothStep(0.0f, 1.0f, raw);
-    }
-
-    static Vector3 AngleToDir(float angleDeg)
+    private static Vector3 AngleToDir(float angleDeg)
     {
         float rad = angleDeg * Mathf.Deg2Rad;
         return new Vector3(0f, Mathf.Cos(rad), Mathf.Sin(rad)).normalized;
     }
 
-    void InitSpectrum()
+    private void InitSpectrum()
     {
-        _spectrumRaw = new float[spectrumSamples];
-        _spectrumSmooth = new float[spectrumSamples];
-        _spectrumPixels = new Color[256];
+        m_spectrumRaw    = new float[spectrumSamples];
+        m_spectrumSmooth = new float[spectrumSamples];
+        m_spectrumPixels = new Color[256];
 
-        _spectrumTex = new Texture2D(256, 1, TextureFormat.RFloat, false)
+        m_spectrumTex = new Texture2D(256, 1, TextureFormat.RFloat, false)
         {
-            wrapMode = TextureWrapMode.Clamp,
+            wrapMode   = TextureWrapMode.Clamp,
             filterMode = FilterMode.Bilinear
         };
     }
 
-    void UpdateSpectrum()
+    private void UpdateSpectrum()
     {
-        if (_spectrumTex == null) InitSpectrum();
+        if (!m_spectrumTex) InitSpectrum();
 
-        AudioListener.GetSpectrumData(_spectrumRaw, 0, fftWindow);
+        AudioListener.GetSpectrumData(m_spectrumRaw, 0, fftWindow);
 
         for (int s = 0; s < 256; s++)
         {
-            int bin = Mathf.Min(s * spectrumSamples / 256, spectrumSamples - 1);
-            float raw = _spectrumRaw[bin];
-            _spectrumSmooth[s] = Mathf.Lerp(raw, _spectrumSmooth[s], spectrumSmoothing);
-            _spectrumPixels[s] = new Color(_spectrumSmooth[s], 0f, 0f, 1f);
+            int   bin = Mathf.Min(s * spectrumSamples / 256, spectrumSamples - 1);
+            float raw = m_spectrumRaw[bin];
+            m_spectrumSmooth[s] = Mathf.Lerp(raw, m_spectrumSmooth[s], spectrumSmoothing);
+            m_spectrumPixels[s] = new Color(m_spectrumSmooth[s], 0f, 0f, 1f);
         }
 
-        _spectrumTex.SetPixels(_spectrumPixels);
-        _spectrumTex.Apply();
+        m_spectrumTex.SetPixels(m_spectrumPixels);
+        m_spectrumTex.Apply();
 
-        skyboxMaterial.SetTexture(PropSpectrumTex, _spectrumTex);
+        skyboxMaterial.SetTexture(PropSpectrumTex, m_spectrumTex);
     }
 
     #if UNITY_EDITOR
-    void OnDrawGizmos()
+    private void OnDrawGizmos()
     {
         Vector3 origin = orbitPivot ? orbitPivot.position : Vector3.zero;
-        float r = 3f;
+        const float r  = 3f;
 
-        float sunAngle = timeOfDay * 360f - 90f;
+        float sunAngle  = timeOfDay * 360f;
         float moonAngle = sunAngle + moonOrbitOffset;
 
-        Vector3 sunPos = origin + AngleToDir(sunAngle) * r;
+        Vector3 sunPos  = origin + AngleToDir(sunAngle)  * r;
         Vector3 moonPos = origin + AngleToDir(moonAngle) * r;
 
         Gizmos.color = Color.yellow;
