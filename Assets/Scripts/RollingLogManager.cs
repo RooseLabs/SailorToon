@@ -12,7 +12,7 @@ public class RollingLogManager : MonoBehaviour
     [SerializeField, Range(-0.05f, 0.05f)] private float m_amount = 0.005f;
 
     [Header("Sphere Mode")]
-    [SerializeField] private bool m_sphereMode = false;
+    [SerializeField] private bool m_sphereMode = true;
     [SerializeField] private Transform m_sphereCenter;
 
     private static readonly int AmountID = Shader.PropertyToID("_RL_Amount");
