@@ -109,7 +109,7 @@ Shader "Custom/GrassGeometry"
                 float2 seed = basePos.xz;
                 float rAngle = rand(seed) * UNITY_TWO_PI;
                 float rHeight = 0.7 + rand(seed + 1) * 0.6;
-                float rWidth = 0.7 + rand(seed + 2) * 0.6;       
+                float rWidth = 0.7 + rand(seed + 2) * 0.6;
                 float rTilt = rand(seed + 3) * _BladeTilt;
 
                 float bladeH = _BladeHeight * rHeight;
