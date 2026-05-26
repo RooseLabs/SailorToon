@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 [ExecuteAlways]
@@ -23,6 +24,10 @@ public class SkyboxController : MonoBehaviour
     public Transform orbitPivot;
     public float moonOrbitOffset = 180f;
 
+    [Header("Directional Light")]
+    [Tooltip("Scene directional light driven by the sun direction. Leave null to auto-find.")]
+    public Light sunLight;
+
     [Header("Music Visualizer (Synthwave Sky)")]
     [Range(64, 8192)] public int spectrumSamples = 256;
     public FFTWindow fftWindow = FFTWindow.BlackmanHarris;
@@ -36,6 +41,8 @@ public class SkyboxController : MonoBehaviour
 
     private static readonly int PropTimeOfDay   = Shader.PropertyToID("_TimeOfDay");
     private static readonly int PropSunDir      = Shader.PropertyToID("_SunDir");
+    private static readonly int PropSWSunDir    = Shader.PropertyToID("_SWSunDir");
+    private static readonly int PropRMSunDir    = Shader.PropertyToID("_RMSunDir");
     private static readonly int PropMoonDir     = Shader.PropertyToID("_MoonDir");
     private static readonly int PropSpectrumTex = Shader.PropertyToID("_SpectrumTex");
 
@@ -67,6 +74,8 @@ public class SkyboxController : MonoBehaviour
     {
         if (skyboxMaterial == null)
             skyboxMaterial = RenderSettings.skybox;
+        if (sunLight == null)
+            sunLight = FindSceneDirectionalLight();
         InitSpectrum();
     }
 
@@ -102,8 +111,34 @@ public class SkyboxController : MonoBehaviour
         float sunAngle  = timeOfDay * 360f;
         float moonAngle = sunAngle + moonOrbitOffset;
 
-        skyboxMaterial.SetVector(PropSunDir,  AngleToDir(sunAngle));
-        skyboxMaterial.SetVector(PropMoonDir, AngleToDir(moonAngle));
+        Vector3 sunDir  = AngleToDir(sunAngle);
+        Vector3 moonDir = AngleToDir(moonAngle);
+
+        skyboxMaterial.SetVector(PropSunDir,  sunDir);
+        skyboxMaterial.SetVector(PropMoonDir, moonDir);
+
+        if (!sunLight)
+            sunLight = FindSceneDirectionalLight();
+
+        if (sunLight)
+        {
+            Vector3 activeSunDir;
+            if ((m & BitSunSynthwave) != 0)
+                activeSunDir = ((Vector3)skyboxMaterial.GetVector(PropSWSunDir)).normalized;
+            else if ((m & BitSunRaymarched) != 0)
+                activeSunDir = ((Vector3)skyboxMaterial.GetVector(PropRMSunDir)).normalized;
+            else
+                activeSunDir = sunDir;
+
+            // Night when the daynight sky's nb crosses 0.5 — same threshold the shader uses
+            // to fade in the moon. Sky=Synthwave has no day/night cycle, so always use the sun.
+            bool skyIsDayNight = (m & BitSkyDayNight) != 0;
+            bool isNight = skyIsDayNight && Mathf.Abs(timeOfDay - 0.5f) < 0.25f;
+
+            Vector3 lightDir = isNight ? moonDir : activeSunDir;
+            if (lightDir.sqrMagnitude > 1e-6f)
+                sunLight.transform.rotation = Quaternion.LookRotation(-lightDir);
+        }
 
         if (skyIsSynthwave)
             UpdateSpectrum();
@@ -146,6 +181,12 @@ public class SkyboxController : MonoBehaviour
         m_spectrumTex.Apply();
 
         skyboxMaterial.SetTexture(PropSpectrumTex, m_spectrumTex);
+    }
+
+    private static Light FindSceneDirectionalLight()
+    {
+        Light[] lights = FindObjectsByType<Light>(FindObjectsSortMode.None);
+        return lights.FirstOrDefault(light => light.type == LightType.Directional);
     }
 
     #if UNITY_EDITOR
