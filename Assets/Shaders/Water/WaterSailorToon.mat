@@ -38,6 +38,8 @@ Material:
     - _ShoreGlowStrength: 0.43
     - _SpecularPower: 60
     - _SpecularStrength: 0.6
+    - _StencilComp: 6
+    - _StencilRef: 1
     - _Transparency: 0.895
     - _WaterDetailMode: 0
     - _WaveFrequency: 0.8

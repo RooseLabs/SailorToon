@@ -35,6 +35,12 @@ Shader "Custom/WaterSailorToon"
         _SpecularStrength ("Specular Strength", Float) = 0.6
         _FresnelPower ("Fresnel Power", Float) = 3.0
         _Transparency ("Transparency", Range(0,1)) = 0.75
+
+        [Header(Stencil)]
+        // Set _StencilComp to Always (8) to disable the stencil test per material.
+        // Default rejects fragments whose stencil value equals _StencilRef (e.g. the boat hull).
+        [IntRange] _StencilRef ("Stencil Ref", Range(0,255)) = 1
+        [Enum(UnityEngine.Rendering.CompareFunction)] _StencilComp ("Stencil Compare", Float) = 6
     }
 
     SubShader
@@ -46,6 +52,13 @@ Shader "Custom/WaterSailorToon"
             Blend SrcAlpha OneMinusSrcAlpha
             ZWrite Off
             Cull Back
+
+            Stencil
+            {
+                Ref [_StencilRef]
+                Comp [_StencilComp]
+                Pass Keep
+            }
 
             CGPROGRAM
             #pragma vertex vert

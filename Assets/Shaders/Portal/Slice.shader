@@ -11,6 +11,12 @@
         _Color ("Color", Color) = (1,1,1,1)
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         [Enum(Off,0,Front,1,Back,2)] _Cull ("Cull Mode", Float) = 2
+
+        // Stencil. Set _StencilWriteOp to Replace (2) on materials that should mark
+        // the stencil buffer (e.g. boat hull) so other shaders (e.g. water) can mask
+        // against _StencilRef. Default Keep (0) leaves the buffer untouched.
+        [IntRange] _StencilRef ("Stencil Ref", Range(0,255)) = 1
+        [Enum(UnityEngine.Rendering.StencilOp)] _StencilWriteOp ("Stencil Write Op", Float) = 0
     }
     SubShader
     {
@@ -22,6 +28,13 @@
         LOD 200
 
         Cull [_Cull]
+
+        Stencil
+        {
+            Ref [_StencilRef]
+            Comp Always
+            Pass [_StencilWriteOp]
+        }
 
         CGPROGRAM
         #pragma surface surf Toon fullforwardshadows noambient novertexlights noforwardadd vertex:vert addshadow

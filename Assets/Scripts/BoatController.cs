@@ -1,7 +1,7 @@
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
-public class BoatController : MonoBehaviour
+public class BoatController : PortalTraveler
 {
     [Header("Movement")]
     public float maxForwardSpeed = 10f;
@@ -28,6 +28,9 @@ public class BoatController : MonoBehaviour
     private bool m_onWater = false;
     private float m_throttleInput = 0f;
     private float m_steerInput = 0f;
+
+    public float CurrentSpeed => m_currentSpeed;
+    public float SpeedFraction => m_currentSpeed / maxForwardSpeed;
 
     private void Awake()
     {
@@ -134,9 +137,9 @@ public class BoatController : MonoBehaviour
         Vector3 forward = Vector3.ProjectOnPlane(transform.forward, m_waterNormal).normalized;
         Vector3 desiredVelocity = forward * m_currentSpeed;
 
-        Vector3 currentXZ = new Vector3(m_rb.linearVelocity.x, 0f, m_rb.linearVelocity.z);
-        Vector3 desiredXZ = new Vector3(desiredVelocity.x, 0f, desiredVelocity.z);
-        Vector3 correction = (desiredXZ - currentXZ) * m_rb.mass * 10f;
+        Vector3 currentXZ = new(m_rb.linearVelocity.x, 0f, m_rb.linearVelocity.z);
+        Vector3 desiredXZ = new(desiredVelocity.x, 0f, desiredVelocity.z);
+        Vector3 correction = (desiredXZ - currentXZ) * (m_rb.mass * 10f);
         m_rb.AddForce(correction, ForceMode.Force);
 
         // Correct Y with a force instead of teleporting
@@ -145,6 +148,13 @@ public class BoatController : MonoBehaviour
         m_rb.AddForce(new Vector3(0f, yCorrection, 0f), ForceMode.Force);
     }
 
-    public float CurrentSpeed => m_currentSpeed;
-    public float SpeedFraction => m_currentSpeed / maxForwardSpeed;
+    public override void Teleport(Transform fromPortal, Transform toPortal, Vector3 pos, Quaternion rot)
+    {
+        base.Teleport(fromPortal, toPortal, pos, rot);
+        m_rb.position = pos;
+        m_rb.rotation = rot;
+        m_rb.linearVelocity = toPortal.TransformVector(fromPortal.InverseTransformVector(m_rb.linearVelocity));
+        m_rb.angularVelocity = toPortal.TransformVector(fromPortal.InverseTransformVector(m_rb.angularVelocity));
+        Physics.SyncTransforms();
+    }
 }

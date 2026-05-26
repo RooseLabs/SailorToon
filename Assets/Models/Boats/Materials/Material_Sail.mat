@@ -31,6 +31,8 @@ Material:
     m_Floats:
     - _Cull: 0
     - _SliceOffsetDst: 0
+    - _StencilRef: 1
+    - _StencilWriteOp: 2
     m_Colors:
     - _Color: {r: 0.049661707, g: 0.34503418, b: 0.5849056, a: 1}
     - _SliceCenter: {r: 0, g: 0, b: 0, a: 0}
