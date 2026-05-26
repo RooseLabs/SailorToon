@@ -136,8 +136,8 @@ Shader "Custom/WaterSailorToon"
 
                 float3 worldPos = mul(unity_ObjectToWorld, v.vertex).xyz;
 
-                float3 wave    = ComputeWave(worldPos);
-                worldPos.y    += wave.x;
+                float3 wave = ComputeWave(worldPos);
+                worldPos.y += wave.x;
 
                 // Analytic normal from wave surface: N = normalize(-ddx, 1, -ddz)
                 float3 worldNormal = normalize(float3(-wave.y, 1.0, -wave.z));
@@ -157,8 +157,7 @@ Shader "Custom/WaterSailorToon"
             // Pseudo-random float2 per integer grid cell.
             float2 Hash2(float2 p)
             {
-                p = float2(dot(p, float2(127.1, 311.7)),
-                           dot(p, float2(269.5, 183.3)));
+                p = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
                 return frac(sin(p) * 43758.5453);
             }
 
@@ -201,16 +200,74 @@ Shader "Custom/WaterSailorToon"
                 return ring * breakup * fade * 0.7;
             }
 
+            // A mathematically robust way to extract view space depth from raw depth.
+            // Works for ALL projection matrices (standard, ortho, oblique).
+            // Uses UNITY_MATRIX_P (the current projection matrix) dynamically.
+            inline float GetTrueEyeDepth(float rawDepth, float2 screenUV)
+            {
+                float p20 = UNITY_MATRIX_P[2][0];
+                float p21 = UNITY_MATRIX_P[2][1];
+
+                // If this is a standard symmetrical projection matrix, rely on Unity's built-in optimized macro
+                if (abs(p20) < 0.00001 && abs(p21) < 0.00001)
+                {
+                    return LinearEyeDepth(rawDepth);
+                }
+
+                // If we reach here, we are dealing with an Oblique projection matrix (like Portals use).
+                // Skyboxes and cleared backgrounds will result in mathematically negative or invalid depths
+                // when put back through the oblique matrix, so we catch the raw depth buffer clear values.
+                #if defined(UNITY_REVERSED_Z)
+                if (rawDepth < 0.00001) return 10000.0;
+                #else
+                if (rawDepth > 0.99999) return 10000.0;
+                #endif
+
+                // Reconstruct clip space Z
+                float clipZ = rawDepth;
+                #if !defined(UNITY_REVERSED_Z)
+                clipZ = clipZ * 2.0 - 1.0;
+                #endif
+
+                // Get clip space XY.
+                // We must restore the 'flipped' Y state that UNITY_MATRIX_P expects
+                // during Render-To-Texture passes using _ProjectionParams.x
+                float2 ndc = screenUV * 2.0 - 1.0;
+                ndc.y *= _ProjectionParams.x;
+
+                // UNITY_MATRIX_P maps View Space to Clip Space.
+                // We want to solve for viewZ:
+                float p00 = UNITY_MATRIX_P[0][0];
+                float p02 = UNITY_MATRIX_P[0][2];
+                float p11 = UNITY_MATRIX_P[1][1];
+                float p12 = UNITY_MATRIX_P[1][2];
+                float p22 = UNITY_MATRIX_P[2][2];
+                float p23 = UNITY_MATRIX_P[2][3];
+
+                // Substitute viewX and viewY into the clipZ equation
+                float q = p20 * (ndc.x + p02) / p00 + p21 * (ndc.y + p12) / p11 - p22;
+
+                float denom = clipZ - q;
+                if (abs(denom) < 0.000001) return 10000.0; // Prevent divide by zero
+
+                float viewZ = p23 / denom;
+
+                // Empty background space can sometimes mathematically map to behind the camera on oblique frustums.
+                if (viewZ <= 0.0) return 10000.0;
+
+                return viewZ;
+            }
+
             float4 frag(v2f i) : SV_Target
             {
                 // Depth
                 float2 screenUV   = i.screenPos.xy / i.screenPos.w;
-                float  sceneDepth = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, screenUV));
+                float  rawDepth   = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, screenUV);
+                float  sceneDepth = GetTrueEyeDepth(rawDepth, screenUV);
                 float  depthDiff  = sceneDepth - i.screenPos.w;
 
                 // Base color: shallow-to-deep tint
-                float3 finalColor = lerp(_WaterColor.rgb, _DeepWaterColor.rgb,
-                                         saturate(depthDiff / _DepthFadeDistance));
+                float3 outColor = lerp(_WaterColor.rgb, _DeepWaterColor.rgb, saturate(depthDiff / _DepthFadeDistance));
 
                 // ---- Foam ----
                 // Three sine layers warp the depth threshold, producing an uneven
@@ -231,7 +288,7 @@ Shader "Custom/WaterSailorToon"
                 // ---- Surface detail ----
                 #if defined(_WATERDETAILMODE_CELLS)
                     float detail = WaterSpecks(i.worldPos.xz) * (1.0 - foam) * _DetailStrength;
-                    finalColor   = lerp(finalColor, _DetailColor.rgb, detail);
+                    outColor = lerp(outColor, _DetailColor.rgb, detail);
                 #else
                     // Slow-drifting thin bands; a gentle sine bend keeps them from looking rigid.
                     float lineCoord = i.worldPos.z * _DetailScale * 0.28
@@ -239,20 +296,19 @@ Shader "Custom/WaterSailorToon"
                                     + sin(i.worldPos.x * 1.8 + _Time.y * 0.30) * 0.06
                                     - _Time.y * 0.18;
                     float detail = step(0.91, frac(lineCoord)) * (1.0 - foam) * _DetailStrength;
-                    finalColor   = lerp(finalColor, finalColor * 0.55, detail);
+                    outColor = lerp(outColor, outColor * 0.55, detail);
                 #endif
 
                 // Lay foam, then draw the ink band on top of it.
-                finalColor = lerp(finalColor, _FoamColor.rgb, foam);
-                finalColor = lerp(finalColor, _FoamOutlineColor.rgb, inkLine * _ShoreGlowStrength);
+                outColor = lerp(outColor, _FoamColor.rgb, foam);
+                outColor = lerp(outColor, _FoamOutlineColor.rgb, inkLine * _ShoreGlowStrength);
 
                 // Ripple rings
                 float rippleSum = 0.0;
                 [unroll]
                 for (int r = 0; r < RIPPLE_COUNT; ++r)
                     rippleSum += RippleRing(i.worldPos.xz, _RippleData[r]);
-                finalColor = lerp(finalColor, _RippleColor.rgb,
-                                  smoothstep(0.0, 0.8, rippleSum) * _RippleStrength);
+                outColor = lerp(outColor, _RippleColor.rgb, smoothstep(0.0, 0.8, rippleSum) * _RippleStrength);
 
                 // Lighting
                 float3 normal   = normalize(i.worldNormal);
@@ -260,11 +316,11 @@ Shader "Custom/WaterSailorToon"
                 float3 lightDir = normalize(_WorldSpaceLightPos0.xyz);
                 float3 halfDir  = normalize(lightDir + viewDir);
                 float  spec     = smoothstep(0.3, 0.55, pow(saturate(dot(normal, halfDir)), _SpecularPower));
-                finalColor += _SpecularColor.rgb * _LightColor0.rgb * spec * _SpecularStrength;
+                outColor += _SpecularColor.rgb * _LightColor0.rgb * spec * _SpecularStrength;
 
                 // Fresnel: more opaque at glancing angles, more transparent looking straight down
                 float fresnel = pow(1.0 - saturate(dot(normal, viewDir)), _FresnelPower);
-                return float4(finalColor, lerp(_Transparency, 1.0, fresnel));
+                return float4(outColor, lerp(_Transparency, 1.0, fresnel));
             }
 
             ENDCG

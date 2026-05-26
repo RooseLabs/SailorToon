@@ -4,6 +4,7 @@ using UnityEditor;
 #endif
 
 [ExecuteAlways]
+[DefaultExecutionOrder(100)]
 public class RollingLogManager : MonoBehaviour
 {
     private const string EnableRollingLog = "_ENABLE_ROLLING_LOG";
@@ -22,6 +23,8 @@ public class RollingLogManager : MonoBehaviour
     {
         PushGlobals();
         ApplyKeywords();
+        Camera.onPreCull += OnCameraPreCull;
+        Camera.onPostRender += OnCameraPostRender;
         #if UNITY_EDITOR
         EditorApplication.playModeStateChanged += OnPlayModeChanged;
         #endif
@@ -32,20 +35,35 @@ public class RollingLogManager : MonoBehaviour
         #if UNITY_EDITOR
         EditorApplication.playModeStateChanged -= OnPlayModeChanged;
         #endif
+        Camera.onPreCull -= OnCameraPreCull;
+        Camera.onPostRender -= OnCameraPostRender;
         Shader.DisableKeyword(EnableRollingLog);
         Shader.DisableKeyword(SphereMode);
+    }
+
+    private void LateUpdate()
+    {
+        // This LateUpdate needs to happen after Portal.cs LateUpdate, which is why we have [DefaultExecutionOrder(100)]
+        // This is because HandleTravelers in Portal.cs can change the position of the player, and we need to push the
+        // center after that.
+        if (m_sphereMode) PushCenter();
+    }
+
+    private void OnCameraPreCull(Camera cam)
+    {
+        cam.cullingMatrix = Matrix4x4.Ortho(-99f, 99f, -99f, 99f, 0.001f, 1000f)
+                          * cam.worldToCameraMatrix;
+    }
+
+    private void OnCameraPostRender(Camera cam)
+    {
+        cam.ResetCullingMatrix();
     }
 
     private void OnValidate()
     {
         PushGlobals();
         ApplyKeywords();
-    }
-
-    private void LateUpdate()
-    {
-        // Push center each frame so it tracks Transform movement.
-        if (m_sphereMode) PushCenter();
     }
 
     #if UNITY_EDITOR

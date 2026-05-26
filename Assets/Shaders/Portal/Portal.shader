@@ -1,9 +1,11 @@
 ﻿Shader "Custom/Portal"
 {
-    Properties
-    {
-        _InactiveColor ("Inactive Color", Color) = (0, 0, 0, 0)
-    }
+    // The goal of this shader is to render a portal effect by mapping a texture
+    // exactly to the screen space coordinates of the object.
+    // This ensures that the texture (usually a Render Texture from another camera)
+    // acts like a seamless window to another location. It prevents the image from
+    // being stretched by the mesh's UVs or aspect ratio, as it is mapped 1:1 with the screen.
+    Properties { }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
@@ -32,8 +34,7 @@
             };
 
             sampler2D _MainTex;
-            float4 _InactiveColour;
-            int _DisplayMask; // set to 1 to display texture, otherwise will draw inactive colour
+            int _DisplayMask; // 1 = display texture, 0 = discard fragment
 
             v2f vert(appdata v)
             {
@@ -51,12 +52,12 @@
 
             fixed4 frag(v2f i) : SV_Target
             {
+                clip(_DisplayMask - 0.5);
                 float2 uv = i.screenPos.xy / i.screenPos.w;
-                fixed4 portalColor = tex2D(_MainTex, uv);
-                return portalColor * _DisplayMask + _InactiveColour * (1 - _DisplayMask);
+                return tex2D(_MainTex, uv);
             }
             ENDCG
         }
     }
-    Fallback "Standard"
+    Fallback Off
 }

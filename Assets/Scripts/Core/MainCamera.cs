@@ -4,12 +4,13 @@ public class MainCamera : MonoBehaviour {
 
     private Portal[] m_portals;
 
-    private void Awake () {
+    private void Awake()
+    {
         m_portals = FindObjectsByType<Portal>(FindObjectsSortMode.None);
     }
 
-    private void OnPreCull() {
-
+    private void OnPreCull()
+    {
         foreach (Portal p in m_portals)
             p.PrePortalRender();
         foreach (Portal p in m_portals)
