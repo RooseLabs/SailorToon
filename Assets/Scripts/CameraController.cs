@@ -7,6 +7,7 @@ using UnityEditor;
 public class CameraController : MonoBehaviour
 {
     private static readonly int CameraRight = Shader.PropertyToID("_CameraRight");
+
     private Camera m_camera;
 
     [Header("Orbit Target")]
@@ -43,6 +44,7 @@ public class CameraController : MonoBehaviour
         CacheCamera();
         UpdateShaderGlobal();
         InitOrbit();
+        SetDepthTextureMode();
     }
 
     private void Awake()
@@ -56,7 +58,7 @@ public class CameraController : MonoBehaviour
         UpdateShaderGlobal();
 
         if (!Application.isPlaying) return;
-        if (target == null) return;
+        if (!target) return;
 
         HandleZoom();
 
@@ -77,16 +79,23 @@ public class CameraController : MonoBehaviour
         if (activeCamera) Shader.SetGlobalVector(CameraRight, activeCamera.transform.right);
     }
 
+    private void SetDepthTextureMode()
+    {
+        Camera activeCamera = GetActiveCamera();
+        if (activeCamera) activeCamera.depthTextureMode = DepthTextureMode.Depth;
+    }
+
     private Camera GetActiveCamera()
     {
-#if UNITY_EDITOR
+        #if UNITY_EDITOR
         if (!Application.isPlaying)
         {
             SceneView sceneView = SceneView.lastActiveSceneView;
             if (sceneView && sceneView.camera)
                 return sceneView.camera;
         }
-#endif
+        #endif
+
         if (!m_camera) CacheCamera();
         return m_camera;
     }

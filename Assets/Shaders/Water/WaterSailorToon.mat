@@ -1,0 +1,55 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: WaterSailorToon
+  m_Shader: {fileID: 4800000, guid: b4eb61093a5e6424fb4744d50071ceef, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords:
+  - _WATERDETAILMODE_LINES
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _ContourScale: 69
+    - _ContourStrength: 0.2
+    - _DepthFadeDistance: 2
+    - _DetailScale: 69
+    - _DetailStrength: 0.25
+    - _FoamDistance: 1
+    - _FresnelPower: 3
+    - _RippleStrength: 0.35
+    - _RippleThickness: 0.18
+    - _ShoreGlowStrength: 0.43
+    - _SpecularPower: 60
+    - _SpecularStrength: 0.6
+    - _Transparency: 0.895
+    - _WaterDetailMode: 0
+    - _WaveFrequency: 0.8
+    - _WaveHeight: 0.06
+    - _WaveSpeed: 2
+    m_Colors:
+    - _DeepWaterColor: {r: 0.04, g: 0.21999997, b: 0.5, a: 1}
+    - _DetailColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FoamColor: {r: 0.95, g: 1, b: 1, a: 1}
+    - _FoamOutlineColor: {r: 0.34999996, g: 0.95, b: 1, a: 1}
+    - _RippleColor: {r: 0.85, g: 1, b: 1, a: 1}
+    - _SpecularColor: {r: 1, g: 1, b: 1, a: 1}
+    - _WaterColor: {r: 0.17734645, g: 0.9134507, b: 0.9245283, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
