@@ -8,8 +8,6 @@ Shader "Custom/Swaying"
         _ColorD ("Color D", Color) = (0.9, 0.8, 0.2, 1)
         _ColorBottomHalf ("Bottom Half Color", Color) = (0.4, 0.2, 0.1, 1)
         _ColorChangeSpeed ("Color Change Speed", Float) = 1.0
-        _Glossiness ("Smoothness", Range(0,1)) = 0.5
-        _Metallic ("Metallic", Range(0,1)) = 0.0
         _SwayingStrength ("Swaying Strength", Float) = 0.2
         _SwayingSpeed ("Swaying Speed", Float) = 2
         _TopInfluence ("Top Influence", Float) = 1
@@ -20,21 +18,24 @@ Shader "Custom/Swaying"
         Tags { "RenderType"="Opaque" }
 
         CGPROGRAM
-        #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
+        #pragma surface surf Toon fullforwardshadows noambient novertexlights noforwardadd vertex:vert addshadow
         #pragma target 3.0
+        #pragma multi_compile _ _HALFTONE_ON
         #pragma multi_compile _ _ENABLE_ROLLING_LOG
         #pragma multi_compile _ _ROLLING_LOG_SPHERE
 
         #include "Includes/RollingLog.cginc"
+        #include "Includes/ToonLighting.cginc"
 
         float4 _CameraRight;
 
         fixed4 _ColorA, _ColorB, _ColorC, _ColorD, _ColorBottomHalf;
-        half _ColorChangeSpeed, _Glossiness, _Metallic, _SwayingStrength, _SwayingSpeed, _TopInfluence;
+        half _ColorChangeSpeed, _SwayingStrength, _SwayingSpeed, _TopInfluence;
 
         struct Input
         {
             float2 meshUV;
+            float4 screenPos;
         };
 
         float random(float2 uv)
@@ -77,7 +78,7 @@ Shader "Custom/Swaying"
             o.meshUV = v.texcoord.xy;
         }
 
-        void surf(Input IN, inout SurfaceOutputStandard o)
+        void surf(Input IN, inout SurfaceOutputToon o)
         {
             if (IN.meshUV.y > 0.5)
             {
@@ -92,8 +93,8 @@ Shader "Custom/Swaying"
                 o.Albedo = _ColorBottomHalf.rgb;
             }
 
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
+            o.Alpha = 1.0;
+            o.screenPos = IN.screenPos;
         }
         ENDCG
     }

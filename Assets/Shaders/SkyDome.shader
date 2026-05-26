@@ -1,5 +1,14 @@
 ﻿Shader "Custom/SkyDome"
 {
+    // The goal of this shader is to render a sky dome with a three-stop vertical
+    // gradient driven by the mesh's V coordinate. _ColorA is at the bottom (horizon),
+    // _ColorB is the midpoint, and _ColorC is at the top (zenith), with the two
+    // segments blended linearly so the dome reads as a simple stylised sky.
+    //
+    // This is written as a vert+frag pass rather than a surface shader because the
+    // dome is unlit: it just outputs a color from UV. Surface shaders are built
+    // around Unity's lighting pipeline (albedo/normal/metallic feeding auto-generated
+    // forward/deferred/shadow passes), which would add cost and variants for nothing.
     Properties
     {
         _ColorA ("Color A", Color) = (1,1,1,1)

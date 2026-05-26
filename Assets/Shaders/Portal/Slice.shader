@@ -1,15 +1,16 @@
 ﻿Shader "Custom/Slice"
 {
+    // The goal of this shader is to render a standard PBR-lit mesh that can be
+    // clipped against an arbitrary world-space plane. _SliceCenter and _SliceNormal
+    // define the plane, and _SliceOffsetDst shifts it along its normal; fragments
+    // on the negative side of the plane are discarded via clip(), so the mesh
+    // appears progressively cut away. Used together with the portal system so
+    // objects passing through a portal can be hidden on the far side cleanly.
     Properties
     {
         _Color ("Color", Color) = (1,1,1,1)
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
-        _Glossiness ("Smoothness", Range(0,1)) = 0.5
-        _Metallic ("Metallic", Range(0,1)) = 0.0
-
-        _SliceNormal ("Normal", Vector) = (0,0,0,0)
-        _SliceCenter ("Center", Vector) = (0,0,0,0)
-        _SliceOffsetDst ("Offset", Float) = 0
+        [Enum(Off,0,Front,1,Back,2)] _Cull ("Cull Mode", Float) = 2
     }
     SubShader
     {
@@ -20,27 +21,28 @@
         }
         LOD 200
 
+        Cull [_Cull]
+
         CGPROGRAM
-        // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
+        #pragma surface surf Toon fullforwardshadows noambient novertexlights noforwardadd vertex:vert addshadow
         #pragma target 3.0
 
+        #pragma multi_compile _ _HALFTONE_ON
         #pragma multi_compile _ _ENABLE_ROLLING_LOG
         #pragma multi_compile _ _ROLLING_LOG_SPHERE
 
         #include "../Includes/RollingLog.cginc"
+        #include "../Includes/ToonLighting.cginc"
 
         sampler2D _MainTex;
+        fixed4 _Color;
 
         struct Input
         {
             float2 uv_MainTex;
             float3 worldPos;
+            float4 screenPos;
         };
-
-        half _Glossiness;
-        half _Metallic;
-        fixed4 _Color;
 
         // World space normal of slice, anything along this direction from center will be invisible
         float3 _SliceNormal;
@@ -63,22 +65,18 @@
             #endif
         }
 
-        void surf(Input IN, inout SurfaceOutputStandard o)
+        void surf(Input IN, inout SurfaceOutputToon o)
         {
             float3 adjustedCenter = _SliceCenter + _SliceNormal * _SliceOffsetDst;
             float3 offsetTo_SliceCenter = adjustedCenter - IN.worldPos;
             clip(dot(offsetTo_SliceCenter, _SliceNormal));
 
-            // Albedo comes from a texture tinted by color
             fixed4 c = tex2D(_MainTex, IN.uv_MainTex) * _Color;
             o.Albedo = c.rgb;
-
-            // Metallic and smoothness come from slider variables
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
             o.Alpha = c.a;
+            o.screenPos = IN.screenPos;
         }
         ENDCG
     }
-    FallBack "VertexLit"
+    FallBack "Diffuse"
 }

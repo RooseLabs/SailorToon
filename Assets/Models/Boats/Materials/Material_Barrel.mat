@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Material.002
-  m_Shader: {fileID: 4800000, guid: 1b4d0d60ef51a7040926d3aaef71a9fd, type: 3}
+  m_Name: Material_Barrel
+  m_Shader: {fileID: 4800000, guid: aaeaf3dc8c9344c5fa572f7789c131cc, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -73,13 +73,16 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _SliceOffsetDst: 0
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 1, g: 0.5428762, b: 0.281978, a: 1}
+    - _Color: {r: 0.9063317, g: 0.4611948, b: 0.14095303, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _SliceCenter: {r: 0, g: 0, b: 0, a: 0}
+    - _SliceNormal: {r: 0, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

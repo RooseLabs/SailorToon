@@ -33,14 +33,6 @@ Shader "Custom/ProceduralSkybox"
         _MoonEdgeSoftness ("Edge Softness", Range(0, 1)) = 0.1
         _MoonCrescent     ("Moon Crescent Offset", Range(0.0, 1.0)) = 0.4
 
-        [Header(Clouds)]
-        _CloudColor     ("Cloud Color", Color) = (1.0, 0.98, 0.95, 1)
-        _CloudShadow    ("Cloud Shadow Color", Color) = (0.6, 0.65, 0.75, 1)
-        _CloudCover     ("Cloud Cover", Range(0,1)) = 0.5
-        _CloudSharpness ("Cloud Sharpness", Range(1, 8)) = 4.0
-        _CloudSpeed     ("Cloud Speed", Range(0, 0.1)) = 0.01
-        _CloudScale     ("Cloud Scale", Range(1, 10)) = 4.0
-
         [Header(Stars)]
         _StarDensity    ("Star Density", Range(50, 500)) = 200.0
         _StarBrightness ("Star Brightness", Range(0, 2)) = 1.0
@@ -139,9 +131,6 @@ Shader "Custom/ProceduralSkybox"
             float4 _SunsetZenith, _SunsetHorizon;
             float4 _NightZenith, _NightHorizon, _NightGround;
 
-            float4 _CloudColor, _CloudShadow;
-            float  _CloudCover, _CloudSharpness, _CloudSpeed, _CloudScale;
-
             float  _StarDensity, _StarBrightness, _StarTwinkle;
 
             float4 _SWHorizonA, _SWHorizonB, _SWZenith;
@@ -229,15 +218,6 @@ Shader "Custom/ProceduralSkybox"
                 float  brightness = hash21(cell + 31.7);
                 float  twinkle    = 0.7 + 0.3 * sin(time * _StarTwinkle * 3.0 + brightness * 10.0);
                 return smoothstep(0.08, 0.0, dist) * brightness * twinkle;
-            }
-
-            float cloudDensity(float3 dir, float time)
-            {
-                if (dir.y < 0.0) return 0.0;
-                float2 uv = (dir.xz / (dir.y + 0.01)) * 0.3 * _CloudScale;
-                uv += float2(time * _CloudSpeed, 0.0);
-                float n = fbm(uv);
-                return saturate((n - (1.0 - _CloudCover)) * _CloudSharpness);
             }
 
             float moonDisc(float3 dir, float3 moonDir)
@@ -480,19 +460,6 @@ Shader "Custom/ProceduralSkybox"
 
                 float starVal = stars(dir, time) * _StarBrightness * nb * saturate(up + 0.1);
                 skyColor += starVal;
-
-                if (up > 0.0)
-                {
-                    float cd = cloudDensity(dir, time);
-                    if (cd > 0.001)
-                    {
-                        float3 baseCloud   = lerp(_CloudShadow.rgb, _CloudColor.rgb, smoothstep(0.0, 1.0, cd));
-                        float3 nightCloud  = _CloudColor.rgb * 0.15;
-                        float3 sunsetCloud = lerp(baseCloud, float3(1.0, 0.55, 0.2), sunsetT * 0.6);
-                        float3 cloudFinal  = lerp(sunsetCloud, nightCloud, nb);
-                        skyColor = lerp(skyColor, cloudFinal, cd * (1.0 - nb * 0.8));
-                    }
-                }
 
             #else // _MODE_SYNTHWAVE
 

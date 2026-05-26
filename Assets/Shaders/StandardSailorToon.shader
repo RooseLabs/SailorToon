@@ -4,8 +4,6 @@ Shader "Custom/StandardSailorToon"
     {
         _Color ("Color", Color) = (1,1,1,1)
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
-        _Glossiness ("Smoothness", Range(0,1)) = 0.5
-        _Metallic ("Metallic", Range(0,1)) = 0.0
         [Enum(Off,0,Front,1,Back,2)] _Cull ("Cull Mode", Float) = 2
     }
     SubShader
@@ -16,29 +14,24 @@ Shader "Custom/StandardSailorToon"
         Cull [_Cull]
 
         CGPROGRAM
-        // Standard PBR lighting + shadow casting/receiving on all light types.
-        // addshadow generates a shadow caster pass that also runs vert:vert,
-        // so cast shadows bend with the geometry.
-        #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
+        #pragma surface surf Toon fullforwardshadows noambient novertexlights noforwardadd vertex:vert addshadow
         #pragma target 3.0
 
-        // Toggled globally by RollingLogManager. multi_compile (not shader_feature)
-        // because the keyword is set via Shader.EnableKeyword at runtime.
+        #pragma multi_compile _ _HALFTONE_ON
         #pragma multi_compile _ _ENABLE_ROLLING_LOG
         #pragma multi_compile _ _ROLLING_LOG_SPHERE
 
         #include "Includes/RollingLog.cginc"
+        #include "Includes/ToonLighting.cginc"
 
         sampler2D _MainTex;
+        fixed4 _Color;
 
         struct Input
         {
             float2 uv_MainTex;
+            float4 screenPos;
         };
-
-        half _Glossiness;
-        half _Metallic;
-        fixed4 _Color;
 
         UNITY_INSTANCING_BUFFER_START(Props)
         UNITY_INSTANCING_BUFFER_END(Props)
@@ -57,13 +50,12 @@ Shader "Custom/StandardSailorToon"
             #endif
         }
 
-        void surf(Input IN, inout SurfaceOutputStandard o)
+        void surf(Input IN, inout SurfaceOutputToon o)
         {
             fixed4 c = tex2D(_MainTex, IN.uv_MainTex) * _Color;
             o.Albedo = c.rgb;
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
             o.Alpha = c.a;
+            o.screenPos = IN.screenPos;
         }
         ENDCG
     }

@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Material
-  m_Shader: {fileID: 4800000, guid: 1b4d0d60ef51a7040926d3aaef71a9fd, type: 3}
+  m_Name: Material_Mast
+  m_Shader: {fileID: 4800000, guid: aaeaf3dc8c9344c5fa572f7789c131cc, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -62,7 +62,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
-    - _Cull: 0
+    - _Cull: 2
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
@@ -73,13 +73,16 @@ Material:
     - _Mode: 0
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _SliceOffsetDst: 0
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
-    - _Color: {r: 0.17778648, g: 0.8392157, b: 0.11764705, a: 1}
+    - _Color: {r: 0.99332684, g: 0.46946603, b: 0.14465377, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _SliceCenter: {r: 0, g: 0, b: 0, a: 0}
+    - _SliceNormal: {r: 0, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
