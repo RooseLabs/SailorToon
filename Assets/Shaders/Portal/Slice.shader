@@ -22,9 +22,13 @@
 
         CGPROGRAM
         // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard addshadow
-        // Use shader model 3.0 target, to get nicer looking lighting
+        #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
         #pragma target 3.0
+
+        #pragma multi_compile _ _ENABLE_ROLLING_LOG
+        #pragma multi_compile _ _ROLLING_LOG_SPHERE
+
+        #include "../Includes/RollingLog.cginc"
 
         sampler2D _MainTex;
 
@@ -44,6 +48,20 @@
         float3 _SliceCenter;
         // Increasing makes more of the mesh visible, decreasing makes less of the mesh visible
         float _SliceOffsetDst;
+
+        void vert(inout appdata_full v)
+        {
+            #ifdef _ENABLE_ROLLING_LOG
+            float3 worldPos    = mul(unity_ObjectToWorld, v.vertex).xyz;
+            float3 worldNormal = UnityObjectToWorldNormal(v.normal);
+
+            worldNormal = ApplyRollingLogNormal(worldNormal, worldPos);
+            worldPos    = ApplyRollingLog(worldPos);
+
+            v.vertex = mul(unity_WorldToObject, float4(worldPos, 1.0));
+            v.normal = normalize(mul((float3x3)unity_WorldToObject, worldNormal));
+            #endif
+        }
 
         void surf(Input IN, inout SurfaceOutputStandard o)
         {

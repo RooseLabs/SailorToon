@@ -18,11 +18,13 @@ public class Portal : MonoBehaviour
     private List<PortalTraveller> m_trackedTravellers;
     private MeshFilter m_screenMeshFilter;
 
-    private static readonly int DisplayMask = Shader.PropertyToID("displayMask");
+    private static readonly int DisplayMask = Shader.PropertyToID("_DisplayMask");
     private static readonly int MainTex = Shader.PropertyToID("_MainTex");
     private static readonly int SliceCenter = Shader.PropertyToID("_SliceCenter");
     private static readonly int SliceNormal = Shader.PropertyToID("_SliceNormal");
     private static readonly int SliceOffsetDst = Shader.PropertyToID("_SliceOffsetDst");
+    private static readonly int RollingLogCenter = Shader.PropertyToID("_RL_Center");
+    private static readonly int CameraRight = Shader.PropertyToID("_CameraRight");
 
     private void Awake()
     {
@@ -90,6 +92,14 @@ public class Portal : MonoBehaviour
         Matrix4x4 localToWorldMatrix = m_playerCam.transform.localToWorldMatrix;
         var renderPositions = new Vector3[recursionLimit];
         var renderRotations = new Quaternion[recursionLimit];
+        // Per-iteration rolling-log center, transformed through the portal pair matrix so
+        // the bend is centered the same way relative to the portal camera as the original
+        // _RL_Center is relative to the player camera.
+        var renderCenters = new Vector3[recursionLimit];
+
+        Vector3 originalRollingLogCenter = Shader.GetGlobalVector(RollingLogCenter);
+        Vector3 originalCameraRight = Shader.GetGlobalVector(CameraRight);
+        Matrix4x4 pairAccumulator = Matrix4x4.identity;
 
         int startIndex = 0;
         m_portalCam.projectionMatrix = m_playerCam.projectionMatrix;
@@ -100,11 +110,13 @@ public class Portal : MonoBehaviour
                 if (!CameraUtility.BoundsOverlap(m_screenMeshFilter, linkedPortal.m_screenMeshFilter, m_portalCam))
                     break;
 
-            localToWorldMatrix = transform.localToWorldMatrix * linkedPortal.transform.worldToLocalMatrix *
-                                 localToWorldMatrix;
+            Matrix4x4 pairMatrix = transform.localToWorldMatrix * linkedPortal.transform.worldToLocalMatrix;
+            localToWorldMatrix = pairMatrix * localToWorldMatrix;
+            pairAccumulator = pairMatrix * pairAccumulator;
             int renderOrderIndex = recursionLimit - i - 1;
             renderPositions[renderOrderIndex] = localToWorldMatrix.GetColumn(3);
             renderRotations[renderOrderIndex] = localToWorldMatrix.rotation;
+            renderCenters[renderOrderIndex] = pairAccumulator.MultiplyPoint(originalRollingLogCenter);
 
             m_portalCam.transform.SetPositionAndRotation(renderPositions[renderOrderIndex],
                 renderRotations[renderOrderIndex]);
@@ -118,12 +130,20 @@ public class Portal : MonoBehaviour
         for (int i = startIndex; i < recursionLimit; i++)
         {
             m_portalCam.transform.SetPositionAndRotation(renderPositions[i], renderRotations[i]);
+            Shader.SetGlobalVector(RollingLogCenter, renderCenters[i]);
+            // Push the portal camera's right vector so swaying objects visible through the
+            // portal already sway in the post-teleport direction - no visual jump on crossing.
+            Shader.SetGlobalVector(CameraRight, m_portalCam.transform.right);
             SetNearClipPlane();
             HandleClipping();
             m_portalCam.Render();
 
             if (i == startIndex) linkedPortal.screen.material.SetInt(DisplayMask, 1);
         }
+
+        // Restore globals so the player camera's pass uses world-anchored values.
+        Shader.SetGlobalVector(RollingLogCenter, originalRollingLogCenter);
+        Shader.SetGlobalVector(CameraRight, originalCameraRight);
 
         // Unhide objects hidden at start of render
         screen.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
@@ -305,10 +325,6 @@ public class Portal : MonoBehaviour
             m_trackedTravellers.Remove(traveller);
         }
     }
-
-    /*
-     ** Some helper/convenience stuff:
-     */
 
     private int SideOfPortal(Vector3 pos)
     {

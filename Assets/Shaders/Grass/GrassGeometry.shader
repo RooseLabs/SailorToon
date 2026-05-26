@@ -8,6 +8,7 @@ Shader "Custom/GrassGeometry"
         _BladeWidth ("Blade Width", Float) = 0.08
         _BladeRandom ("Blade Randomness", Range(0, 1)) = 0.3
         _BladeTilt ("Blade Tilt", Range(0, 0.5)) = 0.1
+        _RootBend ("Root Bend (along normal)", Range(0, 1)) = 0.2
         _WindSpeed ("Wind Speed", Float) = 1.0
         _WindStrength ("Wind Strength", Float) = 0.3
     }
@@ -19,6 +20,7 @@ Shader "Custom/GrassGeometry"
 
         CGINCLUDE
         #include "UnityCG.cginc"
+        #include "../Includes/RollingLog.cginc"
 
         fixed4 _RootColor;
         fixed4 _TipColor;
@@ -27,6 +29,7 @@ Shader "Custom/GrassGeometry"
         float _BladeWidth;
         float _BladeRandom;
         float _BladeTilt;
+        float _RootBend;
 
         float4 _WindDir;
         float _WindSpeed;
@@ -80,8 +83,16 @@ Shader "Custom/GrassGeometry"
         v2g vert(appdata v)
         {
             v2g o;
-            o.worldPos = mul(unity_ObjectToWorld, v.vertex);
-            o.worldNormal = UnityObjectToWorldNormal(v.normal);
+            float3 worldPos    = mul(unity_ObjectToWorld, v.vertex).xyz;
+            float3 worldNormal = UnityObjectToWorldNormal(v.normal);
+
+            #ifdef _ENABLE_ROLLING_LOG
+            worldNormal = ApplyRollingLogNormal(worldNormal, worldPos);
+            worldPos    = ApplyRollingLog(worldPos);
+            #endif
+
+            o.worldPos    = float4(worldPos, 1.0);
+            o.worldNormal = worldNormal;
             return o;
         }
 
@@ -89,7 +100,8 @@ Shader "Custom/GrassGeometry"
         // plus their corresponding height (0..1) into `outHeight[0..6]`.
         void BuildBlade(float3 basePos, float3 normal, out float3 outPos[7], out float outHeight[7])
         {
-            float3 up = normalize(normal);
+            float3 surfaceUp = normalize(normal);
+            float3 worldUp = float3(0, 1, 0);
 
             float2 seed = basePos.xz;
             float rAngle = rand(seed) * UNITY_TWO_PI;
@@ -101,14 +113,30 @@ Shader "Custom/GrassGeometry"
             float bladeW = _BladeWidth * rWidth;
 
             // Build a tangent basis perpendicular to the surface normal.
-            float3 refAxis = abs(up.y) < 0.99 ? float3(0, 1, 0) : float3(1, 0, 0);
-            float3 tangent = normalize(cross(refAxis, up));
+            float3 refAxis = abs(surfaceUp.y) < 0.99 ? float3(0, 1, 0) : float3(1, 0, 0);
+            float3 tangent = normalize(cross(refAxis, surfaceUp));
 
-            float3x3 yRot = AngleAxis3x3(rAngle, up);
+            float3x3 yRot = AngleAxis3x3(rAngle, surfaceUp);
             float3 right = mul(yRot, tangent);
 
+            // Tip points up in world space, with a small random tilt around `right`.
             float3x3 tiltRot = AngleAxis3x3(rTilt, right);
-            float3 bladeUp = mul(tiltRot, up);
+            float3 tipDir = mul(tiltRot, worldUp);
+
+            // Quadratic bezier:
+            //   p0 = root, p1 = control point along surface normal (short),
+            //   p2 = tip displaced along world up. This makes the blade leave the
+            //   surface along its normal and then curve sharply toward world up.
+            //
+            // Scale the bend by how much the surface tilts away from world up so
+            // that on a perfectly flat surface the bezier collapses to a straight
+            // line (and _RootBend has no visible effect).
+            float slope = saturate(1.0 - dot(surfaceUp, worldUp));
+            float effectiveBend = _RootBend * smoothstep(0.0, 0.25, slope);
+
+            float3 p0 = basePos;
+            float3 p1 = basePos + surfaceUp * (bladeH * effectiveBend);
+            float3 p2 = basePos + tipDir * bladeH;
 
             const int SEG = 3;
             const float INV = 1.0 / (float)SEG;
@@ -118,8 +146,14 @@ Shader "Custom/GrassGeometry"
             for (int i = 0; i <= SEG; i++)
             {
                 float t = i * INV;
-                float width_t = (1.0 - t);
-                float3 center = basePos + bladeUp * (bladeH * t);
+                float omt = 1.0 - t;
+                float3 center = omt * omt * p0 + 2.0 * omt * t * p1 + t * t * p2;
+
+                // Taper width by actual world-space height ratio so _RootBend
+                // doesn't visually inflate the blade by bunching wide vertices
+                // higher up the curve.
+                float yT = saturate((center.y - basePos.y) / max(bladeH, 1e-4));
+                float width_t = 1.0 - yT;
 
                 float mask = t * t;
                 center += WindDisplacement(basePos, mask);
@@ -127,10 +161,10 @@ Shader "Custom/GrassGeometry"
                 if (i < SEG)
                 {
                     outPos[idx] = center - right * (bladeW * 0.5 * width_t);
-                    outHeight[idx] = t;
+                    outHeight[idx] = yT;
                     idx++;
                     outPos[idx] = center + right * (bladeW * 0.5 * width_t);
-                    outHeight[idx] = t;
+                    outHeight[idx] = yT;
                     idx++;
                 }
                 else
@@ -153,6 +187,8 @@ Shader "Custom/GrassGeometry"
             #pragma geometry geom
             #pragma fragment frag
             #pragma target 4.0
+            #pragma multi_compile _ _ENABLE_ROLLING_LOG
+            #pragma multi_compile _ _ROLLING_LOG_SPHERE
 
             struct g2f
             {
@@ -196,6 +232,8 @@ Shader "Custom/GrassGeometry"
             #pragma fragment fragShadow
             #pragma target 4.0
             #pragma multi_compile_shadowcaster
+            #pragma multi_compile _ _ENABLE_ROLLING_LOG
+            #pragma multi_compile _ _ROLLING_LOG_SPHERE
 
             struct g2fShadow
             {
