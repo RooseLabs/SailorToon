@@ -24,6 +24,7 @@ using UnityEditor.SceneManagement;
 ///   PaintAt converts world-space hit data to local space before storing.
 ///   EraseAt and TooClose work in local space too.
 /// </summary>
+[ExecuteAlways]
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class GrassPainter : MonoBehaviour
 {
