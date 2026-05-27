@@ -85,7 +85,7 @@ public class GrassPainter : MonoBehaviour
         if (!Application.isPlaying) DestroyImmediate(m_mesh);
         else Destroy(m_mesh);
         #else
-            Destroy(_mesh);
+            Destroy(m_mesh);
         #endif
         m_mesh = null;
     }
