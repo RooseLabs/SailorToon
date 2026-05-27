@@ -25,13 +25,11 @@ public class BezierPath : MonoBehaviour
     [Tooltip("Vertical offset applied on top of the surface hit point.")]
     public float surfaceYOffset = 0f;
 
-    // ── In-game LineRenderer ──────────────────────────────────────────────────
-
     [Header("In-Game Path Visualisation")]
     [Tooltip("Show the path curve as a line in the running game.")]
     public bool showInGame = true;
 
-    [Tooltip("Number of line segments used to approximate each Bézier segment in-game.")]
+    [Tooltip("Number of line segments used to approximate each BÃ©zier segment in-game.")]
     [Range(4, 60)]
     public int lineStepsPerSegment = 20;
 
@@ -47,17 +45,25 @@ public class BezierPath : MonoBehaviour
     [Tooltip("Height offset applied to every LineRenderer point so the line floats above the water.")]
     public float lineHeightOffset = 0.3f;
 
-    private LineRenderer m_lineRenderer;
+    public enum ConnectingEnd { Start, End }
 
-    // ── Arc-length LUT ────────────────────────────────────────────────────────
+    [Header("Portal Link")]
+    [Tooltip("Path on the other side of the portal. After the boat teleports, it attaches to this path. Auto-mirrors on the linked path.")]
+    public BezierPath linkedPath;
+
+    [Tooltip("The portal this path connects to. Used by 'Align to Portal' to snap the connecting endpoint to the portal's pathAttachPoint.")]
+    public Portal connectingPortal;
+
+    [Tooltip("Which end of this path meets the portal. Start = t=0, End = t=1.")]
+    public ConnectingEnd connectingEnd = ConnectingEnd.End;
+
+    private LineRenderer m_lineRenderer;
 
     private const int SamplesPerSegment = 40;
 
     private float[] m_arcLengths;
     private float m_totalLength;
     private bool m_lutDirty = true;
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void OnEnable()
     {
@@ -75,8 +81,8 @@ public class BezierPath : MonoBehaviour
     private void OnValidate()
     {
         m_lutDirty = true;
-        // Defer the line refresh so it runs after Unity finishes its own validation pass
-        // (calling GetComponent during OnValidate can be problematic in edit mode)
+        if (linkedPath != null && linkedPath.linkedPath != this)
+            linkedPath.linkedPath = this;
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.delayCall += () =>
         {
@@ -85,6 +91,34 @@ public class BezierPath : MonoBehaviour
             RefreshLine();
         };
 #endif
+    }
+
+    // Snaps this path's connecting endpoint to connectingPortal.pathAttachPoint, with the
+    // adjacent bezier handle placed along the attach transform's forward axis so the path
+    // tangent at the join is aligned with the boat's direction of travel through the portal.
+    // Place the attach points on the two linked portals at mirrored local offsets and the
+    // two paths will line up perfectly across the portal pair.
+    public void AlignToPortal()
+    {
+        if (connectingPortal == null || connectingPortal.pathAttachPoint == null) return;
+        if (points == null || points.Count < 4) return;
+
+        Transform attach = connectingPortal.pathAttachPoint;
+        int anchorIdx = connectingEnd == ConnectingEnd.End ? points.Count - 1 : 0;
+        int handleIdx = connectingEnd == ConnectingEnd.End ? points.Count - 2 : 1;
+
+        float handleDist = Vector3.Distance(points[anchorIdx], points[handleIdx]);
+        if (handleDist < 0.0001f) handleDist = 2f;
+
+        // For ConnectingEnd.End the bezier tangent at t=1 is (anchor - handle), which we
+        // want to point INTO the portal (= -attach.forward). For ConnectingEnd.Start the
+        // tangent at t=0 is (handle - anchor), which we want to point AWAY from the portal
+        // (= +attach.forward). Both cases resolve to: handle = anchor + attach.forward * dist.
+        points[anchorIdx] = attach.position;
+        points[handleIdx] = points[anchorIdx] + attach.forward * handleDist;
+
+        m_lutDirty = true;
+        RefreshLine();
     }
 
     private void Reset()
@@ -100,8 +134,6 @@ public class BezierPath : MonoBehaviour
         SnapAllPointsToSurface();
         m_lutDirty = true;
     }
-
-    // ── LineRenderer ──────────────────────────────────────────────────────────
 
     private void SetupLineRenderer()
     {
@@ -124,7 +156,6 @@ public class BezierPath : MonoBehaviour
         }
         else
         {
-            // Fallback: create a simple unlit material from the built-in shader
             if (m_lineRenderer.material == null
                 || m_lineRenderer.material.shader.name != "Sprites/Default")
             {
@@ -135,7 +166,6 @@ public class BezierPath : MonoBehaviour
         }
     }
 
-    /// <summary>Rebuilds the LineRenderer point list from the current control points.</summary>
     public void RefreshLine()
     {
         if (m_lineRenderer == null) return;
@@ -158,8 +188,6 @@ public class BezierPath : MonoBehaviour
             m_lineRenderer.SetPosition(i, p);
         }
     }
-
-    // ─── Path API ─────────────────────────────────────────────────────────────
 
     public int SegmentCount => Mathf.Max(0, (points.Count - 1) / 3);
 
@@ -201,8 +229,6 @@ public class BezierPath : MonoBehaviour
         Vector3 d = CubicBezierDerivative(p0, p1, p2, p3, localT);
         return d.sqrMagnitude < 0.0001f ? Vector3.forward : d.normalized;
     }
-
-    // ── Arc-length LUT ────────────────────────────────────────────────────────
 
     private void RebuildLUT()
     {
@@ -304,8 +330,6 @@ public class BezierPath : MonoBehaviour
         return Vector3.Distance(ClosestPoint(worldPos, out _), worldPos);
     }
 
-    // ── Surface snapping ─────────────────────────────────────────────────────
-
     public Vector3 SnapPointToSurface(Vector3 point)
     {
         if (surfaceLayer == 0) return point;
@@ -325,8 +349,6 @@ public class BezierPath : MonoBehaviour
             points[i] = SnapPointToSurface(points[i]);
         m_lutDirty = true;
     }
-
-    // ── Segment helpers ───────────────────────────────────────────────────────
 
     public void AddSegment()
     {
@@ -350,8 +372,6 @@ public class BezierPath : MonoBehaviour
         RefreshLine();
     }
 
-    // ── Math ─────────────────────────────────────────────────────────────────
-
     private static Vector3 CubicBezier(
         Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
     {
@@ -371,8 +391,6 @@ public class BezierPath : MonoBehaviour
              + 6f * u * t * (p2 - p1)
              + 3f * t * t * (p3 - p2);
     }
-
-    // ── Editor gizmos ─────────────────────────────────────────────────────────
 
 #if UNITY_EDITOR
     private void OnDrawGizmos() => DrawPath(false);
@@ -432,10 +450,6 @@ public class BezierPath : MonoBehaviour
 #endif
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Custom editor
-// ─────────────────────────────────────────────────────────────────────────────
-
 #if UNITY_EDITOR
 [CustomEditor(typeof(BezierPath))]
 public class BezierPathEditor : Editor
@@ -445,6 +459,8 @@ public class BezierPathEditor : Editor
     private void OnSceneGUI()
     {
         if (Path.points == null || Path.points.Count == 0) return;
+
+        bool shiftHeld = Event.current.shift;
 
         EditorGUI.BeginChangeCheck();
 
@@ -466,18 +482,24 @@ public class BezierPathEditor : Editor
 
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(Path, "Move Bézier Point");
+                Undo.RecordObject(Path, "Move BÃ©zier Point");
                 Vector3 delta = newPos - Path.points[i];
 
-                newPos = Path.SnapPointToSurface(newPos);
+                newPos = shiftHeld ? Path.SnapPointToSurface(newPos) : newPos;
                 Path.points[i] = newPos;
 
                 if (isAnchor)
                 {
                     if (i - 1 >= 0)
-                        Path.points[i - 1] = Path.SnapPointToSurface(Path.points[i - 1] + delta);
+                    {
+                        Vector3 nb = Path.points[i - 1] + delta;
+                        Path.points[i - 1] = shiftHeld ? Path.SnapPointToSurface(nb) : nb;
+                    }
                     if (i + 1 < Path.points.Count)
-                        Path.points[i + 1] = Path.SnapPointToSurface(Path.points[i + 1] + delta);
+                    {
+                        Vector3 nb = Path.points[i + 1] + delta;
+                        Path.points[i + 1] = shiftHeld ? Path.SnapPointToSurface(nb) : nb;
+                    }
                 }
                 else
                 {
@@ -488,12 +510,14 @@ public class BezierPathEditor : Editor
                         && anchorIndex >= 0 && anchorIndex < Path.points.Count)
                     {
                         Vector3 anchor = Path.points[anchorIndex];
-                        Path.points[mirrorIndex] =
-                            Path.SnapPointToSurface(anchor - (newPos - anchor));
+                        Vector3 mirrored = anchor - (newPos - anchor);
+                        Path.points[mirrorIndex] = shiftHeld
+                            ? Path.SnapPointToSurface(mirrored)
+                            : mirrored;
                     }
                 }
 
-                Path.RefreshLine();   // keep in-game line in sync while editing
+                Path.RefreshLine();
                 EditorUtility.SetDirty(Path);
                 EditorGUI.BeginChangeCheck();
             }
@@ -505,17 +529,21 @@ public class BezierPathEditor : Editor
         DrawDefaultInspector();
 
         EditorGUILayout.Space();
+        EditorGUILayout.HelpBox(
+            "Hold Shift while dragging any point in the Scene view to snap it to the surface.",
+            MessageType.Info);
+        EditorGUILayout.Space();
 
         if (GUILayout.Button("Add Segment"))
         {
-            Undo.RecordObject(Path, "Add Bézier Segment");
+            Undo.RecordObject(Path, "Add BÃ©zier Segment");
             Path.AddSegment();
             EditorUtility.SetDirty(Path);
         }
 
         if (GUILayout.Button("Remove Last Segment"))
         {
-            Undo.RecordObject(Path, "Remove Bézier Segment");
+            Undo.RecordObject(Path, "Remove BÃ©zier Segment");
             Path.RemoveLastSegment();
             EditorUtility.SetDirty(Path);
         }
@@ -535,6 +563,26 @@ public class BezierPathEditor : Editor
         {
             Path.RefreshLine();
             EditorUtility.SetDirty(Path);
+        }
+
+        EditorGUILayout.Space();
+
+        using (new EditorGUI.DisabledScope(
+            Path.connectingPortal == null || Path.connectingPortal.pathAttachPoint == null))
+        {
+            if (GUILayout.Button("Align to Portal"))
+            {
+                Undo.RecordObject(Path, "Align BÃ©zier Path to Portal");
+                Path.AlignToPortal();
+                EditorUtility.SetDirty(Path);
+            }
+        }
+
+        if (Path.connectingPortal != null && Path.connectingPortal.pathAttachPoint == null)
+        {
+            EditorGUILayout.HelpBox(
+                "Assign a 'pathAttachPoint' transform on the connecting Portal to enable alignment.",
+                MessageType.Info);
         }
     }
 }

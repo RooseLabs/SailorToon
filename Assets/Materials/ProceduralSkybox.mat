@@ -12,8 +12,8 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _MODE_SYNTHWAVE
-  - _SUNMODE_SYNTHWAVE
+  - _MODE_DAYNIGHT
+  - _SUNMODE_TEXTURED
   m_InvalidKeywords:
   - _RMSPECULAR1ENABLED_ON
   - _RMSPECULAR2ENABLED_ON
@@ -135,7 +135,7 @@ Material:
     - _TexSunSpikeCount: 12
     - _TexSunSpikeLength: 0.35
     - _TexSunSpikeSharpness: 4
-    - _TimeOfDay: 0
+    - _TimeOfDay: 0.637
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
@@ -145,12 +145,12 @@ Material:
     - _CloudColor: {r: 1, g: 0.97999996, b: 0.95, a: 1}
     - _CloudShadow: {r: 0.6, g: 0.65, b: 0.75, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _DayGround: {r: 0.29999998, g: 0.24999997, b: 0.19999996, a: 1}
+    - _DayGround: {r: 0.6, g: 0.8000001, b: 1, a: 1}
     - _DayHorizon: {r: 0.6, g: 0.8, b: 1, a: 1}
     - _DayZenith: {r: 0.09999997, g: 0.39999998, b: 0.9, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _MoonColor: {r: 0.9, g: 0.95, b: 1, a: 1}
-    - _MoonDir: {r: 0, g: -1, b: -0.00000008742278, a: 0}
+    - _MoonDir: {r: 0, g: 0.65183353, b: 0.75836205, a: 0}
     - _NightGround: {r: 0.01, g: 0.01, b: 0.02, a: 1}
     - _NightHorizon: {r: 0.03, g: 0.04, b: 0.11999995, a: 1}
     - _NightZenith: {r: 0.01, g: 0.01, b: 0.059999965, a: 1}
@@ -171,7 +171,7 @@ Material:
     - _SWSunDir: {r: 0.5, g: -0.08, b: 0.3, a: 0}
     - _SWZenith: {r: 0.02, g: 0, b: 0.11999995, a: 1}
     - _SunColor: {r: 1, g: 0.95, b: 0.8, a: 1}
-    - _SunDir: {r: 0, g: 1, b: 0, a: 0}
+    - _SunDir: {r: 0, g: -0.6518338, b: -0.7583619, a: 0}
     - _SunGlowColor: {r: 1, g: 0.6, b: 0.19999996, a: 1}
     - _SunsetHorizon: {r: 0.95, g: 0.39999998, b: 0.09999997, a: 1}
     - _SunsetZenith: {r: 0.14999998, g: 0.19999996, b: 0.6, a: 1}

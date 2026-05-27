@@ -12,6 +12,16 @@ public class RollingLogManager : MonoBehaviour
 
     [SerializeField, Range(-0.05f, 0.05f)] private float m_amount = 0.005f;
 
+    public float Amount
+    {
+        get => m_amount;
+        set
+        {
+            m_amount = Mathf.Clamp(value, -0.05f, 0.05f);
+            Shader.SetGlobalFloat(AmountID, m_amount);
+        }
+    }
+
     [Header("Sphere Mode")]
     [SerializeField] private bool m_sphereMode = true;
     [SerializeField] private Transform m_sphereCenter;
@@ -21,6 +31,8 @@ public class RollingLogManager : MonoBehaviour
 
     private void OnEnable()
     {
+        if (m_sphereCenter == null)
+            m_sphereCenter = GameObject.FindGameObjectWithTag("Player").transform;
         PushGlobals();
         ApplyKeywords();
         Camera.onPreCull += OnCameraPreCull;
@@ -51,7 +63,7 @@ public class RollingLogManager : MonoBehaviour
 
     private void OnCameraPreCull(Camera cam)
     {
-        cam.cullingMatrix = Matrix4x4.Ortho(-99f, 99f, -99f, 99f, 0.001f, 1000f)
+        cam.cullingMatrix = Matrix4x4.Ortho(-999f, 999f, -999f, 999f, 0.001f, 1000f)
                           * cam.worldToCameraMatrix;
     }
 

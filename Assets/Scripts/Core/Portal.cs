@@ -7,6 +7,10 @@ public class Portal : MonoBehaviour
     public MeshRenderer screen;
     public int recursionLimit = 5;
 
+    [Header("Path Connection")]
+    [Tooltip("Optional child transform marking where BezierPath endpoints meet this portal. Position determines the join point; +Z (forward) should point along the path's direction at the join. Place at mirrored local offsets on both linked portals so the two paths align through the portal pair.")]
+    public Transform pathAttachPoint;
+
     [Header("Advanced Settings")] public float nearClipOffset = 0.05f;
     public float nearClipLimit = 0.2f;
 
@@ -77,7 +81,9 @@ public class Portal : MonoBehaviour
     // Called before any portal cameras are rendered for the current frame
     public void PrePortalRender()
     {
-        foreach (PortalTraveler traveler in m_trackedTravelers) UpdateSliceParams(traveler);
+        m_portalCam.cullingMask = m_playerCam.cullingMask;
+        foreach (PortalTraveler traveler in m_trackedTravelers)
+            UpdateSliceParams(traveler);
     }
 
     // Manually render the camera attached to this portal

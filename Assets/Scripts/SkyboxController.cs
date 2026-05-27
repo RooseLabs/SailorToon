@@ -46,6 +46,15 @@ public class SkyboxController : MonoBehaviour
     private static readonly int PropMoonDir     = Shader.PropertyToID("_MoonDir");
     private static readonly int PropSpectrumTex = Shader.PropertyToID("_SpectrumTex");
 
+    private static readonly int PropSunColor     = Shader.PropertyToID("_SunColor");
+    private static readonly int PropSunGlowColor = Shader.PropertyToID("_SunGlowColor");
+    private static readonly int PropSWSunColor   = Shader.PropertyToID("_SWSunColor");
+    private static readonly int PropSWSunColor2  = Shader.PropertyToID("_SWSunColor2");
+    private static readonly int PropRMGlowColor  = Shader.PropertyToID("_RMGlowColor");
+    private static readonly int PropRMLight1     = Shader.PropertyToID("_RMLight1Color");
+    private static readonly int PropRMLight2     = Shader.PropertyToID("_RMLight2Color");
+    private static readonly int PropRMLight3     = Shader.PropertyToID("_RMLight3Color");
+
     // Sky bits
     private const int BitSkyDayNight  = 1 << 0;  //  1
     private const int BitSkySynthwave = 1 << 1;  //  2
@@ -138,10 +147,29 @@ public class SkyboxController : MonoBehaviour
             Vector3 lightDir = isNight ? moonDir : activeSunDir;
             if (lightDir.sqrMagnitude > 1e-6f)
                 sunLight.transform.rotation = Quaternion.LookRotation(-lightDir);
+
+            sunLight.color = AverageSunColor(m);
         }
 
         if (skyIsSynthwave)
             UpdateSpectrum();
+    }
+
+    private Color AverageSunColor(int m)
+    {
+        if ((m & BitSunSynthwave) != 0)
+            return (skyboxMaterial.GetColor(PropSWSunColor) +
+                    skyboxMaterial.GetColor(PropSWSunColor2)) * 0.5f;
+
+        if ((m & BitSunRaymarched) != 0)
+            return (skyboxMaterial.GetColor(PropRMGlowColor) +
+                    skyboxMaterial.GetColor(PropRMLight1) +
+                    skyboxMaterial.GetColor(PropRMLight2) +
+                    skyboxMaterial.GetColor(PropRMLight3)) * 0.25f;
+
+        // Standard and Textured both render the disc with _SunColor and the halo with _SunGlowColor.
+        return (skyboxMaterial.GetColor(PropSunColor) +
+                skyboxMaterial.GetColor(PropSunGlowColor)) * 0.5f;
     }
 
     private static Vector3 AngleToDir(float angleDeg)

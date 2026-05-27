@@ -43,7 +43,7 @@ Material:
     - _MyBands: 2.9
     - _Range: 0
     - _SwayingSpeed: 3
-    - _SwayingStrength: 0.58
+    - _SwayingStrength: 1
     - _TopInfluence: 0.2
     - _WindFrequency: -0
     - _WindSpeed: 2.47

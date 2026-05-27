@@ -61,10 +61,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BladeHeight: 0.4
+    - _BladeHeight: 0.48
     - _BladeRandom: 0.3
     - _BladeTilt: 0.1
-    - _BladeWidth: 0.08
+    - _BladeWidth: 0.16
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
@@ -81,7 +81,7 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
-    - _WindSpeed: 1.5
+    - _WindSpeed: 3
     - _WindStrength: 0.3
     - _ZWrite: 1
     m_Colors:

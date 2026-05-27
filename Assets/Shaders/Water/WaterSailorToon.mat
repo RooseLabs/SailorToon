@@ -29,8 +29,8 @@ Material:
     - _ContourScale: 69
     - _ContourStrength: 0.2
     - _DepthFadeDistance: 2
-    - _DetailScale: 69
-    - _DetailStrength: 0.25
+    - _DetailScale: 2
+    - _DetailStrength: 1
     - _FoamDistance: 1
     - _FresnelPower: 3
     - _RippleStrength: 0.35

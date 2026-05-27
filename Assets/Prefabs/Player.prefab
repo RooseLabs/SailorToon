@@ -115,8 +115,8 @@ GameObject:
   m_Component:
   - component: {fileID: 7372967911561837894}
   - component: {fileID: 6722364915582111276}
-  - component: {fileID: 6749778865796422627}
   - component: {fileID: 5828998436904240239}
+  - component: {fileID: 5200780239331367270}
   - component: {fileID: 6209643572874375112}
   m_Layer: 0
   m_Name: Player
@@ -169,7 +169,30 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &6749778865796422627
+--- !u!136 &5828998436904240239
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4880869668575641627}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 1.375897
+  m_Height: 11.195118
+  m_Direction: 2
+  m_Center: {x: 0, y: 0.9921373, z: 0}
+--- !u!114 &5200780239331367270
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -194,29 +217,11 @@ MonoBehaviour:
   raycastOriginHeight: 5
   snapSmoothSpeed: 10
   tiltSmoothSpeed: 5
---- !u!136 &5828998436904240239
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4880869668575641627}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 1.375897
-  m_Height: 11.195118
-  m_Direction: 2
-  m_Center: {x: 0, y: 0.9921373, z: 0}
+  snapHeightOffset: 0.5
+  snapPositionSpeed: 6
+  snapRotationSpeed: 4
+  snapSettleThreshold: 0.15
+  exitCooldown: 2.5
 --- !u!114 &6209643572874375112
 MonoBehaviour:
   m_ObjectHideFlags: 0

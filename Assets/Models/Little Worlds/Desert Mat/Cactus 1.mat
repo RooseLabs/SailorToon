@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Cactus 1
-  m_Shader: {fileID: 4800000, guid: 1b4d0d60ef51a7040926d3aaef71a9fd, type: 3}
+  m_Shader: {fileID: 4800000, guid: ce773a3d56ca6d148b1954a54cbbcb36, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -62,6 +62,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
+    - _ColorChangeSpeed: 0
     - _Cull: 2
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
@@ -76,10 +77,18 @@ Material:
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
+    - _SwayingSpeed: 2
+    - _SwayingStrength: 0.46
+    - _TopInfluence: 0.5
     - _UVSec: 0
     - _ZWrite: 1
     m_Colors:
     - _Color: {r: 0.42956457, g: 0.6037736, b: 0.042719822, a: 1}
+    - _ColorA: {r: 0.43137255, g: 0.6039216, b: 0.043137256, a: 1}
+    - _ColorB: {r: 0.43137255, g: 0.6039216, b: 0.043137256, a: 1}
+    - _ColorBottomHalf: {r: 0.43137255, g: 0.6039216, b: 0.043137256, a: 1}
+    - _ColorC: {r: 0.43137255, g: 0.6039216, b: 0.043137256, a: 1}
+    - _ColorD: {r: 0.43137255, g: 0.6039216, b: 0.043137256, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
