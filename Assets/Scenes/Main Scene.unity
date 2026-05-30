@@ -14960,6 +14960,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 349202428619537207, guid: 1439545e5b6daec43a82bfe05038c371, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1640560700}
+    - targetCorrespondingSourceObject: {fileID: 349202428619537207, guid: 1439545e5b6daec43a82bfe05038c371, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1640560701}
   m_SourcePrefab: {fileID: 100100000, guid: 1439545e5b6daec43a82bfe05038c371, type: 3}
 --- !u!1001 &383727514
 PrefabInstance:
@@ -47494,7 +47497,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1640560695}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e086b3f92510fe448b3646ecc000f6cf, type: 3}
   m_Name: 
@@ -47517,6 +47520,28 @@ MonoBehaviour:
   spectrumSamples: 256
   bassSmoothing: 0.8
   bassBoost: 20
+--- !u!114 &1640560701
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1640560695}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f46f25e874f4ec14ea4fd9daf92feb80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AnalogGlitchController
+  scanLineJitter: 0
+  verticalJump: 0
+  horizontalShake: 0
+  colorDrift: 0.12
+  horizontalRipple: 0
+  grayscale: 1
+  tintDrift: 1
+  driftColor: {r: 0, g: 0.4, b: 0, a: 1}
+  driftIntensity: 1
+  shader: {fileID: 0}
 --- !u!1001 &1643949743
 PrefabInstance:
   m_ObjectHideFlags: 0
