@@ -106,7 +106,7 @@ public class PlayerTriggerZone : MonoBehaviour
         switch (m_musicAction)
         {
             case MusicAction.PlayOverride:
-                if (m_overrideClip) AudioPlaylist.Instance.PlayOverride(m_overrideClip);
+                if (m_overrideClip) AudioPlaylist.Instance.PlayOverride(m_overrideClip, 10);
                 break;
             case MusicAction.ReturnToPlaylist:
                 AudioPlaylist.Instance.ReturnToPlaylist();

@@ -50,11 +50,11 @@ struct SurfaceOutputToon
 // objects get oversized dots relative to their silhouette.
 float ToonHalftoneMask(float2 pixelPos, float tone)
 {
-    float  cell = max(_HalftoneScale, 1.0);
+    float cell = max(_HalftoneScale, 1.0);
 
-    float  a  = radians(_HalftoneAngle);
-    float  cs = cos(a);
-    float  sn = sin(a);
+    float a  = radians(_HalftoneAngle);
+    float cs = cos(a);
+    float sn = sin(a);
     float2 rotated = float2(pixelPos.x * cs - pixelPos.y * sn,
                             pixelPos.x * sn + pixelPos.y * cs);
 

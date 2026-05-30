@@ -84,14 +84,14 @@ public class AudioPlaylist : MonoBehaviour
     /// Crossfade into <paramref name="clip"/> and loop it until <see cref="ReturnToPlaylist"/> is called.
     /// Calling again with a different clip crossfades to that new clip.
     /// </summary>
-    public void PlayOverride(AudioClip clip)
+    public void PlayOverride(AudioClip clip, float? crossfadeDurationOverride = null)
     {
         if (clip == null) return;
         if (m_isOverriding && m_overrideClip == clip) return;
 
         m_isOverriding = true;
         m_overrideClip = clip;
-        StartTransitionTo(clip, loop: true);
+        StartTransitionTo(clip, loop: true, crossfadeDurationOverride);
     }
 
     /// <summary>Crossfade back to the playlist, picking up at the next clip.</summary>
@@ -131,13 +131,13 @@ public class AudioPlaylist : MonoBehaviour
         StartTransitionTo(next, loop: false);
     }
 
-    private void StartTransitionTo(AudioClip clip, bool loop)
+    private void StartTransitionTo(AudioClip clip, bool loop, float? crossfadeDurationOverride = null)
     {
         if (m_transitionRoutine != null) StopCoroutine(m_transitionRoutine);
-        m_transitionRoutine = StartCoroutine(CrossfadeTo(clip, loop));
+        m_transitionRoutine = StartCoroutine(CrossfadeTo(clip, loop, crossfadeDurationOverride));
     }
 
-    private IEnumerator CrossfadeTo(AudioClip clip, bool loop)
+    private IEnumerator CrossfadeTo(AudioClip clip, bool loop, float? crossfadeDurationOverride = null)
     {
         // Swap roles: the idle source becomes the new active source.
         AudioSource incoming = m_idle;
@@ -150,7 +150,7 @@ public class AudioPlaylist : MonoBehaviour
         incoming.Play();
 
         float startOutVol = outgoing.isPlaying ? outgoing.volume : 0f;
-        float duration = Mathf.Max(0.0001f, crossfadeDuration);
+        float duration = Mathf.Max(0.0001f, crossfadeDurationOverride ?? crossfadeDuration);
         float t = 0f;
 
         while (t < duration)

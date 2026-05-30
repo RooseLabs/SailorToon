@@ -47287,7 +47287,7 @@ Transform:
   m_GameObject: {fileID: 1616225443}
   serializedVersion: 2
   m_LocalRotation: {x: 0.000000021855694, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 36.8, y: -0.25, z: 63.567383}
+  m_LocalPosition: {x: 36.8, y: -0.6, z: 63.567383}
   m_LocalScale: {x: 1, y: 0.24, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -49742,7 +49742,7 @@ MonoBehaviour:
   m_overrideClip: {fileID: 8300000, guid: b87caec492f9c5d42b1d7695ae18b420, type: 3}
   m_changeRollingLog: 1
   m_rollingLogAmount: 0.005
-  m_rollingLogTransitionDuration: 5
+  m_rollingLogTransitionDuration: 10
   m_postProcessAction: 1
   m_postProcessController: {fileID: 1640560700}
 --- !u!1001 &1904769032
