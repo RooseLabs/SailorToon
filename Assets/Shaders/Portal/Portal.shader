@@ -53,8 +53,7 @@
             fixed4 frag(v2f i) : SV_Target
             {
                 clip(_DisplayMask - 0.5);
-                float2 uv = i.screenPos.xy / i.screenPos.w;
-                return tex2D(_MainTex, uv);
+                return tex2Dproj(_MainTex, i.screenPos);
             }
             ENDCG
         }

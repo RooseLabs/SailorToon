@@ -43,7 +43,7 @@ Material:
     - _Transparency: 0.895
     - _WaterDetailMode: 0
     - _WaveFrequency: 0.8
-    - _WaveHeight: 0.06
+    - _WaveHeight: 0.18
     - _WaveSpeed: 2
     m_Colors:
     - _DeepWaterColor: {r: 0.04, g: 0.21999997, b: 0.5, a: 1}
