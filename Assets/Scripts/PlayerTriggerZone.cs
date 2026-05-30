@@ -1,4 +1,3 @@
-using System.Collections;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -41,12 +40,11 @@ public class PlayerTriggerZone : MonoBehaviour
     [Header("Post Processing")]
     [SerializeField] private ToggleAction m_postProcessAction = ToggleAction.None;
     [Tooltip("Leave null to auto-find a PostProcessController in the scene.")]
-    [SerializeField] private PostProcessController m_postProcessController;
+    [SerializeField] private MonoBehaviour m_postProcessController;
 
     private Transform m_player;
     private bool m_playerInside;
     private bool m_hasFired;
-    private Coroutine m_rollingLogRoutine;
 
     private void Update()
     {
@@ -121,38 +119,14 @@ public class PlayerTriggerZone : MonoBehaviour
         RollingLogManager rl = FindFirstObjectByType<RollingLogManager>();
         if (!rl) return;
 
-        if (m_rollingLogRoutine != null) StopCoroutine(m_rollingLogRoutine);
-        m_rollingLogRoutine = StartCoroutine(LerpRollingLog(rl, m_rollingLogAmount, m_rollingLogTransitionDuration));
-    }
-
-    private IEnumerator LerpRollingLog(RollingLogManager rl, float target, float duration)
-    {
-        float start = rl.Amount;
-        if (duration <= 0f)
-        {
-            rl.Amount = target;
-            m_rollingLogRoutine = null;
-            yield break;
-        }
-
-        float t = 0f;
-        while (t < duration)
-        {
-            t += Time.deltaTime;
-            float k = Mathf.Clamp01(t / duration);
-            k = k * k * (3f - 2f * k);
-            rl.Amount = Mathf.Lerp(start, target, k);
-            yield return null;
-        }
-        rl.Amount = target;
-        m_rollingLogRoutine = null;
+        rl.LerpAmount(m_rollingLogAmount, m_rollingLogTransitionDuration);
     }
 
     private void ApplyPostProcess()
     {
         if (m_postProcessAction == ToggleAction.None) return;
 
-        PostProcessController pp = m_postProcessController
+        MonoBehaviour pp = m_postProcessController
             ? m_postProcessController
             : FindFirstObjectByType<PostProcessController>(FindObjectsInactive.Include);
         if (!pp) return;

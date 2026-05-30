@@ -40,7 +40,7 @@
         #pragma surface surf Toon fullforwardshadows noambient novertexlights noforwardadd vertex:vert addshadow
         #pragma target 3.0
 
-        #pragma multi_compile _ _HALFTONE_ON
+        #pragma multi_compile _ _TL_HALFTONE_ON
         #pragma multi_compile _ _ENABLE_ROLLING_LOG
         #pragma multi_compile _ _ROLLING_LOG_SPHERE
 

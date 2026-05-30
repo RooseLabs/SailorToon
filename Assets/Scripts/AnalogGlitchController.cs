@@ -22,7 +22,7 @@ public class AnalogGlitchController : MonoBehaviour
     public float driftIntensity = 1f;
 
     [Header("Shader")]
-    [Tooltip("Leave empty to auto-find \"Hidden/KinoGlitch/Analog\".")]
+    [Tooltip("Leave empty to auto-find \"Custom/AnalogGlitch\".")]
     public Shader shader;
 
     private Material m_material;

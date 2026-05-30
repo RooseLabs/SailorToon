@@ -3,7 +3,7 @@ using UnityEngine;
 [ExecuteAlways]
 public class ToonStyleManager : MonoBehaviour
 {
-    private const string HalftoneOn = "_HALFTONE_ON";
+    private const string HalftoneOn = "_TL_HALFTONE_ON";
 
     [Header("Lighting")]
     [ColorUsage(true, true)][SerializeField]
@@ -26,17 +26,17 @@ public class ToonStyleManager : MonoBehaviour
     [SerializeField, Range(0.25f, 4f)] private float m_halftoneFalloff  = 1f;
     [SerializeField, Range(0f, 90f)]   private float m_halftoneAngle    = 45f;
 
-    private static readonly int AmbientColorID     = Shader.PropertyToID("_AmbientColor");
-    private static readonly int SpecularColorID    = Shader.PropertyToID("_SpecularColor");
-    private static readonly int GlossinessID       = Shader.PropertyToID("_Glossiness");
-    private static readonly int RimColorID         = Shader.PropertyToID("_RimColor");
-    private static readonly int RimAmountID        = Shader.PropertyToID("_RimAmount");
-    private static readonly int RimThresholdID     = Shader.PropertyToID("_RimThreshold");
-    private static readonly int HalftoneScaleID    = Shader.PropertyToID("_HalftoneScale");
-    private static readonly int HalftoneDotSizeID  = Shader.PropertyToID("_HalftoneDotSize");
-    private static readonly int HalftoneSoftnessID = Shader.PropertyToID("_HalftoneSoftness");
-    private static readonly int HalftoneFalloffID  = Shader.PropertyToID("_HalftoneFalloff");
-    private static readonly int HalftoneAngleID    = Shader.PropertyToID("_HalftoneAngle");
+    private static readonly int AmbientColorID     = Shader.PropertyToID("_TL_AmbientColor");
+    private static readonly int SpecularColorID    = Shader.PropertyToID("_TL_SpecularColor");
+    private static readonly int GlossinessID       = Shader.PropertyToID("_TL_Glossiness");
+    private static readonly int RimColorID         = Shader.PropertyToID("_TL_RimColor");
+    private static readonly int RimAmountID        = Shader.PropertyToID("_TL_RimAmount");
+    private static readonly int RimThresholdID     = Shader.PropertyToID("_TL_RimThreshold");
+    private static readonly int HalftoneScaleID    = Shader.PropertyToID("_TL_HalftoneScale");
+    private static readonly int HalftoneDotSizeID  = Shader.PropertyToID("_TL_HalftoneDotSize");
+    private static readonly int HalftoneSoftnessID = Shader.PropertyToID("_TL_HalftoneSoftness");
+    private static readonly int HalftoneFalloffID  = Shader.PropertyToID("_TL_HalftoneFalloff");
+    private static readonly int HalftoneAngleID    = Shader.PropertyToID("_TL_HalftoneAngle");
 
     private void OnEnable()
     {

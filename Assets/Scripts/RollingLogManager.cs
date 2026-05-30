@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -29,6 +30,8 @@ public class RollingLogManager : MonoBehaviour
     private static readonly int AmountID = Shader.PropertyToID("_RL_Amount");
     private static readonly int CenterID = Shader.PropertyToID("_RL_Center");
 
+    private Coroutine m_amountRoutine;
+
     private void OnEnable()
     {
         if (m_sphereCenter == null)
@@ -49,6 +52,11 @@ public class RollingLogManager : MonoBehaviour
         #endif
         Camera.onPreCull -= OnCameraPreCull;
         Camera.onPostRender -= OnCameraPostRender;
+        if (m_amountRoutine != null)
+        {
+            StopCoroutine(m_amountRoutine);
+            m_amountRoutine = null;
+        }
         Shader.DisableKeyword(EnableRollingLog);
         Shader.DisableKeyword(SphereMode);
     }
@@ -104,5 +112,35 @@ public class RollingLogManager : MonoBehaviour
 
         if (m_sphereMode) Shader.EnableKeyword(SphereMode);
         else Shader.DisableKeyword(SphereMode);
+    }
+
+    public void LerpAmount(float target, float duration)
+    {
+        if (m_amountRoutine != null) StopCoroutine(m_amountRoutine);
+        m_amountRoutine = StartCoroutine(LerpAmountRoutine(target, duration));
+    }
+
+    private IEnumerator LerpAmountRoutine(float target, float duration)
+    {
+        float start = Amount;
+        if (duration <= 0f)
+        {
+            Amount = target;
+            m_amountRoutine = null;
+            yield break;
+        }
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float k = Mathf.Clamp01(t / duration);
+            k = k * k * (3f - 2f * k);
+            Amount = Mathf.Lerp(start, target, k);
+            yield return null;
+        }
+
+        Amount = target;
+        m_amountRoutine = null;
     }
 }
