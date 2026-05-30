@@ -21,8 +21,6 @@ Shader "Custom/AnalogGlitch"
 
         Pass
         {
-            Name "KinoGlitchAnalog"
-
             HLSLPROGRAM
             #pragma vertex   vert_img
             #pragma fragment frag

@@ -26,7 +26,7 @@ Shader "Custom/SynthwavePostProcess"
         Pass
         {
             HLSLPROGRAM
-            #pragma vertex   vert
+            #pragma vertex   vert_img
             #pragma fragment frag
             #pragma target   3.0
 
@@ -49,17 +49,6 @@ Shader "Custom/SynthwavePostProcess"
             float  _BassValue;
             float  _ZoomStrength;
             float  _ZoomCurve;
-
-            struct appdata { float4 vertex : POSITION; float2 uv : TEXCOORD0; };
-            struct v2f     { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
-
-            v2f vert(appdata v)
-            {
-                v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv  = v.uv;
-                return o;
-            }
 
             float3 RGBtoHSV(float3 c)
             {
@@ -119,7 +108,7 @@ Shader "Custom/SynthwavePostProcess"
                 return saturate(col);
             }
 
-            float4 frag(v2f i) : SV_Target
+            float4 frag(v2f_img i) : SV_Target
             {
                 float2 uv = i.uv;
 
